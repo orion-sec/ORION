@@ -1,76 +1,76 @@
-# Git Basics
+# Day 4 Git Commands
 
-## Check Git Version
+## Verify installations
 
 ```powershell
 git --version
-```
-
-Purpose:
-Checks that Git is installed correctly.
-
----
-
-## Check Python Version
-
-```powershell
 python --version
-```
-
-Purpose:
-Verifies Python installation.
-
----
-
-## Show Current Folder
-
-```powershell
 pwd
 ```
 
-Purpose:
-Shows the current working directory.
-
----
-
-## Initialize a Git Repository
+## Initialize Git
 
 ```powershell
 git init
 ```
 
-Purpose:
-Turns a normal folder into a Git project.
-
----
-
-## Check Repository Status
+## Check repository status
 
 ```powershell
 git status
 ```
 
-Purpose:
-Shows tracked files, untracked files, and repository status.
-
----
-
-## Configure Git Username
+## Configure Git
 
 ```powershell
-git config --global user.name "Onwenmadu Samuel Chukwuka"
+git config --global user.name "Your Name"
+
+git config --global user.email "email@example.com"
 ```
 
-Purpose:
-Sets the Git author name.
-
----
-
-## Configure Git Email
+## Stage files
 
 ```powershell
-git config --global user.email "orionsecurity.office@gmail.com"
+git add .
 ```
 
-Purpose:
-Sets the Git author email.
+## Commit
+
+```powershell
+git commit -m "Initial ORION project structure"
+```
+
+## Rename branch
+
+```powershell
+git branch -M main
+```
+
+## Connect to GitHub
+
+```powershell
+git remote add origin https://github.com/orion-sec/ORION.git
+```
+
+## Push
+
+```powershell
+git push -u origin main
+```
+
+### Navigate into Scripts folder
+```powershell
+cd 07_Scripts
+```
+
+### Run a Python script
+```powershell
+python ioc_extractor.py
+```
+
+### Push changes to GitHub
+```powershell
+git add .
+git commit -m "Day 4 - IOC Extractor V1"
+git push
+```
