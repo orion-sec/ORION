@@ -8,11 +8,26 @@ def display_results(title, items):
     else:
         print("None found.")
 
-
 def display_all_results(results):
 
     for title, items in results.items():
         display_results(title, items)
+
+def display_enriched_ips(enriched_ips):
+    print()
+    print("=" * 35)
+    print("IP ENRICHMENT")
+    print("=" * 35)
+
+    for ip in enriched_ips:
+        print(f"IP Address : {ip['ip']}")
+        print(f"Version    : {ip['version']}")
+        print(f"Private    : {ip['is_private']}")
+        print(f"Global     : {ip['is_global']}")
+        print(f"Loopback   : {ip['is_loopback']}")
+        print(f"Multicast  : {ip['is_multicast']}")
+        print(f"Reserved   : {ip['is_reserved']}")
+        print("-" * 35)
 
 def display_report(results):
     display_summary(
@@ -27,7 +42,17 @@ def display_report(results):
 
     print()
 
-    display_all_results(results)        
+    display_all_results({
+    "URLs": results["URLs"],
+    "IP Addresses": results["IP Addresses"],
+    "MD5 Hashes": results["MD5 Hashes"],
+    "SHA1 Hashes": results["SHA1 Hashes"],
+    "SHA256 Hashes": results["SHA256 Hashes"],
+    "Email Addresses": results["Email Addresses"],
+    "Domains": results["Domains"]
+})
+
+    display_enriched_ips(results["Enriched IPs"])        
 
 def display_summary(urls, ips, md5_hashes, sha1_hashes, sha256_hashes, emails, domains):
     print("=" * 35)
@@ -42,4 +67,4 @@ def display_summary(urls, ips, md5_hashes, sha1_hashes, sha256_hashes, emails, d
     print(f"Emails     : {len(emails)}")
     print(f"Domains    : {len(domains)}")
 
-    print()        
+    print()
