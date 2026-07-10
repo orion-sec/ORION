@@ -29,6 +29,19 @@ def display_enriched_ips(enriched_ips):
         print(f"Reserved   : {ip['is_reserved']}")
         print("-" * 35)
 
+def display_scores(scores):
+
+    print()
+    print("=" * 35)
+    print("RISK SCORES")
+    print("=" * 35)
+
+    for score in scores:
+        print(f"Risk   : {score['risk']}")
+        print(f"Score  : {score['score']}")
+        print(f"Reason : {score['reason']}")
+        print("-" * 35)   
+        
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -52,7 +65,8 @@ def display_report(results):
     "Domains": results["Domains"]
 })
 
-    display_enriched_ips(results["Enriched IPs"])        
+    display_enriched_ips(results["Enriched IPs"])
+    display_scores(results["IP Scores"])
 
 def display_summary(urls, ips, md5_hashes, sha1_hashes, sha256_hashes, emails, domains):
     print("=" * 35)
