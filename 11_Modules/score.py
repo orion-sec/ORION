@@ -1,5 +1,12 @@
 def score_ip(ip):
 
+    if ip["is_loopback"]:
+        return {
+            "risk": "Informational",
+            "score": 0,
+            "reason": "Loopback Address"
+        }
+    
     if ip["is_private"]:
         return {
             "risk": "Low",

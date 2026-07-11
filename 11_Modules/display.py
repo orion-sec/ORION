@@ -41,7 +41,29 @@ def display_scores(scores):
         print(f"Score  : {score['score']}")
         print(f"Reason : {score['reason']}")
         print("-" * 35)   
-        
+
+def display_recommendations(recommendations):
+    print()
+    print("=" * 35)
+    print("ANALYST RECOMMENDATIONS")
+    print("=" * 35)
+
+    for recommendation_list in recommendations:
+        for number, action in enumerate(recommendation_list, start=1):
+            print(f"{number}. {action}")
+
+        print("-" * 35)
+def display_priorities(priorities):
+    print()
+    print("=" * 35)
+    print("INVESTIGATION PRIORITY")
+    print("=" * 35)
+
+    for priority in priorities:
+        print(f"Priority : {priority['priority']}")
+        print(f"Action   : {priority['action']}")
+        print("-" * 35)
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -67,6 +89,8 @@ def display_report(results):
 
     display_enriched_ips(results["Enriched IPs"])
     display_scores(results["IP Scores"])
+    display_recommendations(results["Recommendations"])
+    display_priorities(results["Priorities"])
 
 def display_summary(urls, ips, md5_hashes, sha1_hashes, sha256_hashes, emails, domains):
     print("=" * 35)
