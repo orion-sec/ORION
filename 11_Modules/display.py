@@ -64,6 +64,21 @@ def display_priorities(priorities):
         print(f"Action   : {priority['action']}")
         print("-" * 35)
 
+def display_threat_intelligence(threat_results):
+    print()
+    print("=" * 35)
+    print("THREAT INTELLIGENCE")
+    print("=" * 35)
+
+    for threat in threat_results:
+        print(f"IP          : {threat['ip']}")
+        print(f"Source      : {threat['source']}")
+        print(f"Status      : {threat['status']}")
+        print(f"Reputation  : {threat['reputation']}")
+        print(f"Confidence  : {threat['confidence']}")
+        print(f"Reports     : {threat['reports']}")
+        print("-" * 35)
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -91,6 +106,9 @@ def display_report(results):
     display_scores(results["IP Scores"])
     display_recommendations(results["Recommendations"])
     display_priorities(results["Priorities"])
+    display_threat_intelligence(
+    results["Threat Intelligence"]
+)
 
 def display_summary(urls, ips, md5_hashes, sha1_hashes, sha256_hashes, emails, domains):
     print("=" * 35)

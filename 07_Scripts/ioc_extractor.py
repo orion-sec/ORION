@@ -9,6 +9,7 @@ from extract import extract_iocs
 from enrich import enrich_ips
 from score import score_ip
 from decision import recommend_action, determine_priority
+from threat_intel import lookup_ip_reputation
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")
@@ -21,11 +22,14 @@ results["Enriched IPs"] = enrich_ips(results["IP Addresses"])
 results["IP Scores"] = []
 results["Recommendations"] = []
 results["Priorities"] = []
+results["Threat Intelligence"] = []
 
 for ip in results["Enriched IPs"]:
-    risk_result = score_ip(ip)
+    threat_result = lookup_ip_reputation(ip)
+    risk_result = score_ip(ip, threat_result)
     priority_result = determine_priority(risk_result["score"])
 
+    results["Threat Intelligence"].append(threat_result)
     results["IP Scores"].append(risk_result)
     results["Recommendations"].append(
         recommend_action(risk_result)

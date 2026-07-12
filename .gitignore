@@ -19,3 +19,6 @@ env/
 
 # Windows
 Thumbs.db
+
+# Environment variables and secrets
+.env

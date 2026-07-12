@@ -1,4 +1,4 @@
-def score_ip(ip):
+def score_ip(ip, threat_result):
 
     if ip["is_loopback"]:
         return {
@@ -6,7 +6,7 @@ def score_ip(ip):
             "score": 0,
             "reason": "Loopback Address"
         }
-    
+
     if ip["is_private"]:
         return {
             "risk": "Low",
@@ -14,11 +14,28 @@ def score_ip(ip):
             "reason": "Private IP Address"
         }
 
-    if ip["is_loopback"]:
+    reputation = threat_result["reputation"]
+    confidence = threat_result["confidence"]
+
+    if reputation == "Malicious":
         return {
-            "risk": "Informational",
-            "score": 0,
-            "reason": "Loopback Address"
+            "risk": "High",
+            "score": 90,
+            "reason": "Threat Intelligence identified malicious IOC"
+        }
+
+    if reputation == "Suspicious":
+        return {
+            "risk": "High",
+            "score": 75,
+            "reason": "Threat Intelligence identified suspicious IOC"
+        }
+
+    if reputation == "Clean" and confidence == 0:
+        return {
+            "risk": "Low",
+            "score": 20,
+            "reason": "Public IP with no current AbuseIPDB confidence"
         }
 
     if ip["is_reserved"]:
@@ -32,7 +49,7 @@ def score_ip(ip):
         return {
             "risk": "Medium",
             "score": 50,
-            "reason": "Public Global IP"
+            "reason": "Public Global IP requires further investigation"
         }
 
     return {
