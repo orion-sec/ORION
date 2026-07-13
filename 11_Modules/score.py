@@ -1,4 +1,4 @@
-def score_ip(ip, threat_result):
+def score_ip(ip, threat_result, correlation_result):
 
     if ip["is_loopback"]:
         return {
@@ -16,6 +16,21 @@ def score_ip(ip, threat_result):
 
     reputation = threat_result["reputation"]
     confidence = threat_result["confidence"]
+    correlation_verdict = correlation_result["verdict"]
+
+    if correlation_verdict == "Malicious":
+        return {
+            "risk": "High",
+            "score": 95,
+            "reason": "Multiple threat intelligence sources correlated malicious IOC"
+        }
+
+    if correlation_verdict == "Suspicious":
+        return {
+            "risk": "High",
+            "score": 80,
+            "reason": "Threat intelligence correlation identified suspicious IOC"
+        }
 
     if reputation == "Malicious":
         return {

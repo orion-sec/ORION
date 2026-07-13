@@ -79,6 +79,19 @@ def display_threat_intelligence(threat_results):
         print(f"Reports     : {threat['reports']}")
         print("-" * 35)
 
+def display_threat_correlation(correlation_results):
+    print()
+    print("=" * 35)
+    print("THREAT CORRELATION")
+    print("=" * 35)
+
+    for correlation in correlation_results:
+        print(f"Verdict    : {correlation['verdict']}")
+        print(f"Confidence : {correlation['confidence']}")
+        print(f"Sources    : {correlation['sources']}")
+        print(f"Reason     : {correlation['reason']}")
+        print("-" * 35)
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -106,9 +119,8 @@ def display_report(results):
     display_scores(results["IP Scores"])
     display_recommendations(results["Recommendations"])
     display_priorities(results["Priorities"])
-    display_threat_intelligence(
-    results["Threat Intelligence"]
-)
+    display_threat_intelligence(results["Threat Intelligence"])
+    display_threat_correlation(results["Threat Correlation"])
 
 def display_summary(urls, ips, md5_hashes, sha1_hashes, sha256_hashes, emails, domains):
     print("=" * 35)
