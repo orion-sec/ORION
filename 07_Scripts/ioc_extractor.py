@@ -7,10 +7,13 @@ sys.path.append(os.path.abspath("../11_Modules"))
 from display import display_report
 from extract import extract_iocs
 from enrich import enrich_ips
+from url_enrich import enrich_urls
+from url_score import score_url
 from score import score_ip
 from decision import recommend_action, determine_priority
 from threat_intel import lookup_ip_reputation
 from threat_engine import correlate_threat_intelligence
+from domain_intel import inspect_domains
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")
@@ -19,6 +22,13 @@ print("==============================")
 investigation = input("Paste investigation text here: ")
 results = extract_iocs(investigation)
 results["Enriched IPs"] = enrich_ips(results["IP Addresses"])
+results["Enriched URLs"] = enrich_urls(results["URLs"])
+results["Domain Intelligence"] = inspect_domains(results["Domains"])
+results["URL Scores"] = []
+
+for url in results["Enriched URLs"]:
+    url_score_result = score_url(url)
+    results["URL Scores"].append(url_score_result)
 
 results["IP Scores"] = []
 results["Recommendations"] = []

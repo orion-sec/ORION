@@ -92,6 +92,60 @@ def display_threat_correlation(correlation_results):
         print(f"Reason     : {correlation['reason']}")
         print("-" * 35)
 
+def display_enriched_urls(enriched_urls):
+    print()
+    print("=" * 35)
+    print("URL ENRICHMENT")
+    print("=" * 35)
+
+    for url in enriched_urls:
+        print(f"URL      : {url['url']}")
+        print(f"Scheme   : {url['scheme']}")
+        print(f"Hostname : {url['hostname']}")
+        print(f"Port     : {url['port']}")
+        print(f"Path     : {url['path']}")
+        print(f"Query    : {url['query']}")
+        print("-" * 35)
+
+def display_url_scores(url_scores):
+    print()
+    print("=" * 35)
+    print("URL RISK SCORES")
+    print("=" * 35)
+
+    for result in url_scores:
+        print(f"URL     : {result['url']}")
+        print(f"Risk    : {result['risk']}")
+        print(f"Score   : {result['score']}")
+
+        if result["reasons"]:
+            print("Reasons :")
+            for reason in result["reasons"]:
+                print(f"  - {reason}")
+        else:
+            print("Reasons : No suspicious URL characteristics detected")
+
+        print("-" * 35)
+
+def display_domain_intelligence(domain_results):
+    print()
+    print("=" * 35)
+    print("DOMAIN INTELLIGENCE")
+    print("=" * 35)
+
+    for result in domain_results:
+        print(f"Domain     : {result['domain']}")
+        print(f"Status     : {result['status']}")
+        print(f"Reputation : {result['reputation']}")
+        print(f"Confidence : {result['confidence']}")
+
+        if result["matched_keywords"]:
+            print(f"Matched    : {', '.join(result['matched_keywords'])}")
+        else:
+            print("Matched    : None")
+
+        print("-" * 35)
+        
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -116,6 +170,9 @@ def display_report(results):
 })
 
     display_enriched_ips(results["Enriched IPs"])
+    display_enriched_urls(results["Enriched URLs"])
+    display_url_scores(results["URL Scores"])
+    display_domain_intelligence(results["Domain Intelligence"])
     display_scores(results["IP Scores"])
     display_recommendations(results["Recommendations"])
     display_priorities(results["Priorities"])
