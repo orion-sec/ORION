@@ -33,7 +33,7 @@ def display_scores(scores):
 
     print()
     print("=" * 35)
-    print("RISK SCORES")
+    print("IOC RISK SCORES")
     print("=" * 35)
 
     for score in scores:
@@ -45,7 +45,7 @@ def display_scores(scores):
 def display_recommendations(recommendations):
     print()
     print("=" * 35)
-    print("ANALYST RECOMMENDATIONS")
+    print("IOC-LEVEL RECOMMENDATIONS")
     print("=" * 35)
 
     for recommendation_list in recommendations:
@@ -56,7 +56,7 @@ def display_recommendations(recommendations):
 def display_priorities(priorities):
     print()
     print("=" * 35)
-    print("INVESTIGATION PRIORITY")
+    print("IOC-LEVEL PRIORITY")
     print("=" * 35)
 
     for priority in priorities:
@@ -145,7 +145,51 @@ def display_domain_intelligence(domain_results):
             print("Matched    : None")
 
         print("-" * 35)
-        
+
+def display_investigation_assessment(assessment):
+    print()
+    print("=" * 35)
+    print("INVESTIGATION ASSESSMENT")
+    print("=" * 35)
+
+    print(f"Verdict        : {assessment['verdict']}")
+    print(f"Confidence     : {assessment['confidence']}")
+    print(f"Strong Signals : {assessment['strong_signals']}")
+    print(f"Suspicious     : {assessment['suspicious_signals']}")
+    print(f"Evidence Score : {assessment['evidence_score']}")
+
+    print("Evidence :")
+
+    if assessment["evidence"]:
+        for item in assessment["evidence"]:
+            print(f"  - {item}")
+    else:
+        print("  - No significant evidence identified")
+
+    print("-" * 35)
+
+def display_investigation_recommendations(recommendations):
+    print()
+    print("=" * 35)
+    print("INVESTIGATION RECOMMENDATIONS")
+    print("=" * 35)
+
+    for number, action in enumerate(recommendations, start=1):
+        print(f"{number}. {action}")
+
+    print("-" * 35)
+
+
+def display_investigation_priority(priority):
+    print()
+    print("=" * 35)
+    print("OVERALL INVESTIGATION PRIORITY")
+    print("=" * 35)
+
+    print(f"Priority : {priority['priority']}")
+    print(f"Action   : {priority['action']}")
+    print("-" * 35)
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -173,6 +217,18 @@ def display_report(results):
     display_enriched_urls(results["Enriched URLs"])
     display_url_scores(results["URL Scores"])
     display_domain_intelligence(results["Domain Intelligence"])
+    display_investigation_assessment(
+    results["Investigation Assessment"]
+)
+        
+    display_investigation_recommendations(
+        results["Investigation Recommendations"]
+    )
+
+    display_investigation_priority(
+        results["Investigation Priority"]
+)
+
     display_scores(results["IP Scores"])
     display_recommendations(results["Recommendations"])
     display_priorities(results["Priorities"])

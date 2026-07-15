@@ -10,10 +10,16 @@ from enrich import enrich_ips
 from url_enrich import enrich_urls
 from url_score import score_url
 from score import score_ip
-from decision import recommend_action, determine_priority
+from decision import (
+    recommend_action,
+    determine_priority,
+    recommend_investigation_action,
+    determine_investigation_priority
+)
 from threat_intel import lookup_ip_reputation
 from threat_engine import correlate_threat_intelligence
 from domain_intel import inspect_domains
+from investigation_engine import assess_investigation
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")
@@ -50,6 +56,21 @@ for ip in results["Enriched IPs"]:
         recommend_action(risk_result)
     )
     results["Priorities"].append(priority_result)
+
+results["Investigation Assessment"] = assess_investigation(
+    results["IP Scores"],
+    results["URL Scores"],
+    results["Domain Intelligence"],
+    results["Threat Correlation"][0]
+)
+
+results["Investigation Recommendations"] = recommend_investigation_action(
+    results["Investigation Assessment"]
+)
+
+results["Investigation Priority"] = determine_investigation_priority(
+    results["Investigation Assessment"]
+)
 
 display_report(results)
 
