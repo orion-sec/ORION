@@ -59,21 +59,21 @@ def assess_investigation(ip_scores, url_scores, domain_results, correlation_resu
                 f"Suspicious domain characteristics identified: {result['domain']}"
             )
 
-        # Evaluate threat intelligence correlation
+            # Evaluate threat intelligence correlation
     correlation_verdict = correlation_result["verdict"]
 
     if correlation_verdict == "Malicious":
-        evidence_score += 50
-        strong_signals += 2
+        evidence_score += 40
+        strong_signals += 1
         evidence.append(
             "Multiple threat intelligence sources identified malicious activity"
         )
 
     elif correlation_verdict == "Suspicious":
-        evidence_score += 35
-        strong_signals += 1
+        evidence_score += 20
+        suspicious_signals += 1
         evidence.append(
-            "Threat intelligence identified suspicious activity"
+            "Single-source threat intelligence requires additional validation"
         )
 
     # Determine overall investigation verdict

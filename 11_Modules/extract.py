@@ -18,7 +18,35 @@ def extract_iocs(investigation):
     sha1_hashes = re.findall(r'\b[a-fA-F0-9]{40}\b', investigation)
     sha256_hashes = re.findall(r'\b[a-fA-F0-9]{64}\b', investigation)
     emails = re.findall(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', investigation)
-    domains = re.findall(r'\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b', investigation)
+    domains = re.findall(
+        r'\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b',
+        investigation
+    )
+
+    blocked_file_extensions = {
+        "exe",
+        "dll",
+        "msi",
+        "zip",
+        "rar",
+        "iso",
+        "bat",
+        "cmd",
+        "ps1",
+        "js",
+        "vbs",
+        "scr"
+    }
+
+    filtered_domains = []
+
+    for domain in domains:
+        top_level_part = domain.rsplit(".", 1)[-1].lower()
+
+        if top_level_part not in blocked_file_extensions:
+            filtered_domains.append(domain)
+
+    domains = filtered_domains
 
     ips = list(set(ips))
     md5_hashes = list(set(md5_hashes))

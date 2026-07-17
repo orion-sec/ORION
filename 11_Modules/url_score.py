@@ -21,12 +21,40 @@ def score_url(url_data):
         "update"
     ]
 
+    malware_keywords = [
+    ".exe",
+    ".dll",
+    ".msi",
+    ".zip",
+    ".rar",
+    ".7z",
+    ".iso",
+    ".bat",
+    ".cmd",
+    ".ps1",
+    ".js",
+    ".vbs",
+    ".scr",
+    "payload",
+    "download",
+    "installer",
+    "setup",
+    "update.exe",
+    "crack",
+    "keygen"
+]
+
     url_text = url_data["url"].lower()
 
     for keyword in suspicious_keywords:
         if keyword in url_text:
             score += 5
-            reasons.append(f"Suspicious URL keyword detected: {keyword}")
+            reasons.append(f"Suspicious URL keyword detected: {keyword}")        
+
+    for keyword in malware_keywords:
+        if keyword in url_text:
+            score += 10
+            reasons.append(f"Malware delivery indicator detected: {keyword}")
 
     if score >= 40:
         risk = "High"

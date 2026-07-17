@@ -190,6 +190,24 @@ def display_investigation_priority(priority):
     print(f"Action   : {priority['action']}")
     print("-" * 35)
 
+def display_attack_patterns(patterns):
+    print()
+    print("=" * 35)
+    print("ATTACK PATTERN DETECTION")
+    print("=" * 35)
+
+    if not patterns:
+        print("No known attack patterns detected.")
+        print("-" * 35)
+        return
+
+    for pattern in patterns:
+        print(f"Pattern     : {pattern['name']}")
+        print(f"Severity    : {pattern['severity']}")
+        print(f"Confidence  : {pattern['confidence']}")
+        print(f"Description : {pattern['description']}")
+        print("-" * 35)
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -227,6 +245,10 @@ def display_report(results):
 
     display_investigation_priority(
         results["Investigation Priority"]
+)
+
+    display_attack_patterns(
+        results["Attack Patterns"]
 )
 
     display_scores(results["IP Scores"])

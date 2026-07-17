@@ -20,6 +20,7 @@ from threat_intel import lookup_ip_reputation
 from threat_engine import correlate_threat_intelligence
 from domain_intel import inspect_domains
 from investigation_engine import assess_investigation
+from attack_patterns import detect_attack_patterns
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")
@@ -41,6 +42,7 @@ results["Recommendations"] = []
 results["Priorities"] = []
 results["Threat Intelligence"] = []
 results["Threat Correlation"] = []
+results["Attack Patterns"] = []
 
 for ip in results["Enriched IPs"]:
     threat_result = lookup_ip_reputation(ip)
@@ -61,6 +63,13 @@ results["Investigation Assessment"] = assess_investigation(
     results["IP Scores"],
     results["URL Scores"],
     results["Domain Intelligence"],
+    results["Threat Correlation"][0]
+)
+
+results["Attack Patterns"] = detect_attack_patterns(
+    results["URL Scores"],
+    results["Domain Intelligence"],
+    results["IP Scores"],
     results["Threat Correlation"][0]
 )
 
