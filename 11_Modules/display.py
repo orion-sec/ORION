@@ -208,6 +208,27 @@ def display_attack_patterns(patterns):
         print(f"Description : {pattern['description']}")
         print("-" * 35)
 
+def display_mitre_attack(mitre_results):
+    print()
+    print("=" * 35)
+    print("MITRE ATT&CK")
+    print("=" * 35)
+
+    if mitre_results:
+        for mitre_result in mitre_results:
+            print(f"Tactic         : {mitre_result['tactic']}")
+            print(
+                f"Technique      : "
+                f"{mitre_result['technique_id']} - "
+                f"{mitre_result['technique_name']}"
+            )
+            print(f"Confidence     : {mitre_result['confidence']}")
+            print(f"Classification Reason         : {mitre_result['reason']}")
+            print("-" * 35)
+    else:
+        print("No MITRE ATT&CK mappings identified.")
+        print("-" * 35)        
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -250,6 +271,8 @@ def display_report(results):
     display_attack_patterns(
         results["Attack Patterns"]
 )
+
+    display_mitre_attack(results["MITRE ATT&CK"])
 
     display_scores(results["IP Scores"])
     display_recommendations(results["Recommendations"])

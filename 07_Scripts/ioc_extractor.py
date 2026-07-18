@@ -19,6 +19,7 @@ from decision import (
 from threat_intel import lookup_ip_reputation
 from threat_engine import correlate_threat_intelligence
 from domain_intel import inspect_domains
+from mitre_mapping import map_attack_patterns
 from investigation_engine import assess_investigation
 from attack_patterns import detect_attack_patterns
 
@@ -71,6 +72,10 @@ results["Attack Patterns"] = detect_attack_patterns(
     results["Domain Intelligence"],
     results["IP Scores"],
     results["Threat Correlation"][0]
+)
+
+results["MITRE ATT&CK"] = map_attack_patterns(
+    results["Attack Patterns"]
 )
 
 results["Investigation Recommendations"] = recommend_investigation_action(
