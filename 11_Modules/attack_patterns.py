@@ -1,4 +1,5 @@
 def detect_attack_patterns(
+    investigation,
     url_scores,
     domain_results,
     ip_scores,
@@ -6,6 +7,8 @@ def detect_attack_patterns(
 ):
 
     attack_patterns = []
+
+    investigation_text = investigation.lower()
 
     # Detect credential phishing patterns
     suspicious_url = any(
@@ -18,7 +21,22 @@ def detect_attack_patterns(
         for result in domain_results
     )
 
-    if suspicious_url and suspicious_domain:
+    credential_submission = any(
+    phrase in investigation_text
+    for phrase in [
+        "entered credentials",
+        "submitted credentials",
+        "entered password",
+        "submitted password",
+        "provided credentials",
+        "credential harvesting",
+        "login details entered"
+    ]
+)
+
+    if credential_submission and (
+    suspicious_url or suspicious_domain
+):
         attack_patterns.append({
             "name": "Credential Phishing",
             "severity": "Medium",

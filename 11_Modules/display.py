@@ -223,11 +223,33 @@ def display_mitre_attack(mitre_results):
                 f"{mitre_result['technique_name']}"
             )
             print(f"Confidence     : {mitre_result['confidence']}")
-            print(f"Classification Reason         : {mitre_result['reason']}")
+            print(f"Classification Reason     : {mitre_result['reason']}")
             print("-" * 35)
     else:
         print("No MITRE ATT&CK mappings identified.")
         print("-" * 35)        
+
+def display_response_playbooks(playbooks):
+    print()
+    print("=" * 35)
+    print("RESPONSE PLAYBOOKS")
+    print("=" * 35)
+
+    if not playbooks:
+        print("No response playbooks generated.")
+        print("-" * 35)
+        return
+
+    for playbook in playbooks:
+        print(f"Pattern     : {playbook['pattern']}")
+        print(f"Severity    : {playbook['severity']}")
+        print(f"Confidence  : {playbook['confidence']}")
+        print("Actions     :")
+
+        for number, action in enumerate(playbook["actions"], start=1):
+            print(f"  {number}. {action}")
+
+        print("-" * 35)
 
 def display_report(results):
     display_summary(
@@ -272,8 +294,13 @@ def display_report(results):
         results["Attack Patterns"]
 )
 
-    display_mitre_attack(results["MITRE ATT&CK"])
+    display_mitre_attack(results["MITRE ATT&CK"]
+                         
+)
 
+    display_response_playbooks(results["Response Playbooks"]
+                               
+)
     display_scores(results["IP Scores"])
     display_recommendations(results["Recommendations"])
     display_priorities(results["Priorities"])

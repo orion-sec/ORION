@@ -22,6 +22,7 @@ from domain_intel import inspect_domains
 from mitre_mapping import map_attack_patterns
 from investigation_engine import assess_investigation
 from attack_patterns import detect_attack_patterns
+from response_playbooks import get_response_playbook
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")
@@ -60,21 +61,36 @@ for ip in results["Enriched IPs"]:
     )
     results["Priorities"].append(priority_result)
 
+if results["Threat Correlation"]:
+    correlation_result = results["Threat Correlation"][0]
+else:
+    correlation_result = {
+        "verdict": "Unknown",
+        "confidence": "Low",
+        "sources": 0,
+        "reason": "No IP-based threat intelligence correlation available."
+    }
+
 results["Investigation Assessment"] = assess_investigation(
     results["IP Scores"],
     results["URL Scores"],
     results["Domain Intelligence"],
-    results["Threat Correlation"][0]
+    correlation_result
 )
 
 results["Attack Patterns"] = detect_attack_patterns(
+    investigation,
     results["URL Scores"],
     results["Domain Intelligence"],
     results["IP Scores"],
-    results["Threat Correlation"][0]
+    correlation_result
 )
 
 results["MITRE ATT&CK"] = map_attack_patterns(
+    results["Attack Patterns"]
+)
+
+results["Response Playbooks"] = get_response_playbook(
     results["Attack Patterns"]
 )
 
