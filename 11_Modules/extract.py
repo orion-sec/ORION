@@ -18,9 +18,31 @@ def extract_iocs(investigation):
     sha1_hashes = re.findall(r'\b[a-fA-F0-9]{40}\b', investigation)
     sha256_hashes = re.findall(r'\b[a-fA-F0-9]{64}\b', investigation)
     emails = re.findall(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', investigation)
-    domains = re.findall(
-        r'\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b',
+    domain_pattern = r'\b(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b'
+
+    text_without_emails = re.sub(
+        r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}',
+        '',
         investigation
+    )
+
+    domains = re.findall(
+        domain_pattern,
+        text_without_emails
+    )
+
+    email_domains = [
+        email.split('@')[1]
+        for email in emails
+    ]
+
+    domains.extend(email_domains)
+
+    domains = list(
+        dict.fromkeys(
+            domain.lower().rstrip('.')
+            for domain in domains
+        )
     )
 
     blocked_file_extensions = {
@@ -53,7 +75,7 @@ def extract_iocs(investigation):
     sha1_hashes = list(set(sha1_hashes))
     sha256_hashes = list(set(sha256_hashes))
     emails = list(set(emails))
-    domains = list(set(domains))
+    domains = list(dict.fromkeys(domains))
 
     return {
     "URLs": urls,

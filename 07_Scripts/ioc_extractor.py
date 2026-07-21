@@ -23,6 +23,8 @@ from mitre_mapping import map_attack_patterns
 from investigation_engine import assess_investigation
 from attack_patterns import detect_attack_patterns
 from response_playbooks import get_response_playbook
+from context_risk import assess_contextual_risk
+from identity_entities import extract_identity_entities
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")
@@ -30,6 +32,9 @@ print("==============================")
 
 investigation = input("Paste investigation text here: ")
 results = extract_iocs(investigation)
+results["Identity Entities"] = extract_identity_entities(
+    investigation
+)
 results["Enriched IPs"] = enrich_ips(results["IP Addresses"])
 results["Enriched URLs"] = enrich_urls(results["URLs"])
 results["Domain Intelligence"] = inspect_domains(results["Domains"])
@@ -92,6 +97,10 @@ results["MITRE ATT&CK"] = map_attack_patterns(
 
 results["Response Playbooks"] = get_response_playbook(
     results["Attack Patterns"]
+)
+
+results["Contextual Risk"] = assess_contextual_risk(
+    investigation
 )
 
 results["Investigation Recommendations"] = recommend_investigation_action(

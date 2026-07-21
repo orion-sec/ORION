@@ -251,6 +251,59 @@ def display_response_playbooks(playbooks):
 
         print("-" * 35)
 
+def display_contextual_risk(contextual_risk):
+    print("\n===================================")
+    print("CONTEXTUAL RISK ASSESSMENT")
+    print("===================================")
+
+    print(f"Risk Score    : {contextual_risk['score']}")
+    print(f"Severity      : {contextual_risk['severity']}")
+    print(f"Confidence    : {contextual_risk['confidence']}")
+    print(f"Containment   : {contextual_risk['containment']}")
+
+    print("Evidence      :")
+
+    if contextual_risk["evidence"]:
+        for item in contextual_risk["evidence"]:
+            print(f"  - {item}")
+    else:
+        print("  - No significant contextual risk evidence identified.")
+
+    print("-----------------------------------")
+
+def display_identity_entities(identity):
+    print("===================================")
+    print("IDENTITY ENTITIES")
+    print("===================================")
+
+    primary_user = identity.get("primary_user")
+
+    if primary_user:
+        print(f"Primary User     : {primary_user['email']}")
+        print(f"Display Name     : {primary_user['display_name']}")
+        print(f"Department       : {primary_user['department']}")
+        print(f"Manager          : {primary_user['manager']}")
+        print(f"Role             : {primary_user['role']}")
+        print(f"Privilege Level  : {primary_user['privilege_level']}")
+        print(f"Risk Level       : {primary_user['risk_level']}")
+        print(f"Source           : {primary_user['source']}")
+    else:
+        print("Primary User     : None identified")
+
+    print()
+
+    print(f"Identity Count   : {identity['identity_count']}")
+
+    if identity["email_addresses"]:
+        print("Email Addresses  :")
+        for index, email in enumerate(identity["email_addresses"], start=1):
+            print(f"  {index}. {email}")
+    else:
+        print("Email Addresses  : None found.")
+
+    print("-----------------------------------")
+    print()
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -274,6 +327,9 @@ def display_report(results):
     "Domains": results["Domains"]
 })
 
+    display_identity_entities(
+    results["Identity Entities"]
+)
     display_enriched_ips(results["Enriched IPs"])
     display_enriched_urls(results["Enriched URLs"])
     display_url_scores(results["URL Scores"])
@@ -298,9 +354,14 @@ def display_report(results):
                          
 )
 
-    display_response_playbooks(results["Response Playbooks"]
-                               
+    display_contextual_risk(
+        results["Contextual Risk"]
 )
+
+    display_response_playbooks(
+        results["Response Playbooks"]
+)
+    
     display_scores(results["IP Scores"])
     display_recommendations(results["Recommendations"])
     display_priorities(results["Priorities"])
