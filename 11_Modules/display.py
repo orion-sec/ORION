@@ -168,6 +168,23 @@ def display_investigation_assessment(assessment):
 
     print("-" * 35)
 
+def display_business_impact(business_impact):
+    print("===================================")
+    print("BUSINESS IMPACT ASSESSMENT")
+    print("===================================")
+
+    print(f"Impact Score   : {business_impact['score']}")
+    print(f"Impact Level   : {business_impact['impact']}")
+    print(f"Confidence     : {business_impact['confidence']}")
+    print(f"Escalation     : {business_impact['escalation']}")
+    print("Evidence       :")
+
+    for item in business_impact["evidence"]:
+        print(f"  - {item}")
+
+    print("-----------------------------------")
+    print()
+
 def display_investigation_recommendations(recommendations):
     print()
     print("=" * 35)
@@ -304,6 +321,70 @@ def display_identity_entities(identity):
     print("-----------------------------------")
     print()
 
+def display_enriched_identity(enriched_identity):
+    print("===================================")
+    print("ENRICHED IDENTITY")
+    print("===================================")
+
+    if enriched_identity is None:
+        print("No primary identity available for enrichment.")
+        print("-----------------------------------")
+        print()
+        return
+
+    print(f"Display Name     : {enriched_identity['display_name']}")
+    print(f"Email Address    : {enriched_identity['email']}")
+    print(f"Department       : {enriched_identity['department']}")
+    print(f"Manager          : {enriched_identity['manager']}")
+    print(f"Role             : {enriched_identity['role']}")
+    print(f"Job Title        : {enriched_identity['job_title']}")
+    print(f"Country          : {enriched_identity['country']}")
+    print(f"Office           : {enriched_identity['office']}")
+    print(f"Account Type     : {enriched_identity['account_type']}")
+    print(f"Privilege Level  : {enriched_identity['privilege_level']}")
+    print(f"VIP              : {enriched_identity['vip']}")
+    print(f"Criticality      : {enriched_identity['criticality']}")
+    print(f"Device Count     : {enriched_identity['device_count']}")
+    print(f"Identity Source  : {enriched_identity['identity_source']}")
+    print("-----------------------------------")
+    print()
+
+def display_operational_decision(operational_decision):
+    print("===================================")
+    print("OPERATIONAL DECISION")
+    print("===================================")
+
+    print(f"Decision              : {operational_decision['decision']}")
+    print(f"Priority              : {operational_decision['priority']}")
+    print(
+        f"Automation Readiness  : "
+        f"{operational_decision['automation_readiness']}"
+    )
+
+    print("Decision Inputs       :")
+    print(
+        f"  - Contextual Risk: "
+        f"{operational_decision['inputs']['contextual_risk']}"
+    )
+    print(
+        f"  - Business Impact: "
+        f"{operational_decision['inputs']['business_impact']}"
+    )
+
+    print("Reasons               :")
+    for reason in operational_decision["reasons"]:
+        print(f"  - {reason}")
+
+    print("Recommended Actions   :")
+    for index, action in enumerate(
+        operational_decision["actions"],
+        start=1
+    ):
+        print(f"  {index}. {action}")
+
+    print("-----------------------------------")
+    print()
+
 def display_report(results):
     display_summary(
         results["URLs"],
@@ -330,6 +411,15 @@ def display_report(results):
     display_identity_entities(
     results["Identity Entities"]
 )
+    
+    display_enriched_identity(
+    results["Enriched Identity"]
+)
+    
+    display_business_impact(
+    results["Business Impact"]
+)
+    
     display_enriched_ips(results["Enriched IPs"])
     display_enriched_urls(results["Enriched URLs"])
     display_url_scores(results["URL Scores"])
@@ -356,6 +446,10 @@ def display_report(results):
 
     display_contextual_risk(
         results["Contextual Risk"]
+)
+    
+    display_operational_decision(
+    results["Operational Decision"]
 )
 
     display_response_playbooks(

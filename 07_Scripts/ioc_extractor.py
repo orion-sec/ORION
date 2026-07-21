@@ -25,6 +25,9 @@ from attack_patterns import detect_attack_patterns
 from response_playbooks import get_response_playbook
 from context_risk import assess_contextual_risk
 from identity_entities import extract_identity_entities
+from identity_enrichment import enrich_identity
+from business_impact import assess_business_impact
+from operational_decision import determine_operational_decision
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")
@@ -35,6 +38,15 @@ results = extract_iocs(investigation)
 results["Identity Entities"] = extract_identity_entities(
     investigation
 )
+
+results["Enriched Identity"] = enrich_identity(
+    results["Identity Entities"]
+)
+
+results["Business Impact"] = assess_business_impact(
+    results["Enriched Identity"]
+)
+
 results["Enriched IPs"] = enrich_ips(results["IP Addresses"])
 results["Enriched URLs"] = enrich_urls(results["URLs"])
 results["Domain Intelligence"] = inspect_domains(results["Domains"])
@@ -101,6 +113,11 @@ results["Response Playbooks"] = get_response_playbook(
 
 results["Contextual Risk"] = assess_contextual_risk(
     investigation
+)
+
+results["Operational Decision"] = determine_operational_decision(
+    results["Contextual Risk"],
+    results["Business Impact"]
 )
 
 results["Investigation Recommendations"] = recommend_investigation_action(
