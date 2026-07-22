@@ -16,6 +16,7 @@ from decision import (
     recommend_investigation_action,
     determine_investigation_priority
 )
+from pipeline import OrionPipeline, initialise_results_stage
 from threat_intel import lookup_ip_reputation
 from threat_engine import correlate_threat_intelligence
 from domain_intel import inspect_domains
@@ -35,10 +36,6 @@ print("==============================")
 
 investigation = input("Paste investigation text here: ")
 results = extract_iocs(investigation)
-results["Identity Entities"] = extract_identity_entities(
-    investigation
-)
-
 results["Enriched Identity"] = enrich_identity(
     results["Identity Entities"]
 )
