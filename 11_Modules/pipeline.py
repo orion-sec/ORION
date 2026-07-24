@@ -20,11 +20,15 @@ import time
 
 from extract import extract_iocs
 from identity_entities import extract_identity_entities
+from identity_enrichment import enrich_identity
+from business_impact import assess_business_impact
 
 STAGE_NAMES = {
     "initialise_results_stage": "Initializing Investigation",
     "ioc_extraction_stage": "Extracting Indicators of Compromise",
     "identity_extraction_stage": "Extracting Identity Entities",
+    "identity_enrichment_stage": "Enriching Identity Context",
+    "business_impact_stage": "Assessing Business Impact",
 }
 
 
@@ -50,6 +54,28 @@ def identity_extraction_stage(investigation, results):
 
     return results
 
+def identity_enrichment_stage(investigation, results):
+    """
+    Enrich extracted identity entities with organisational context.
+    """
+
+    results["Enriched Identity"] = enrich_identity(
+        results["Identity Entities"]
+    )
+
+    return results
+
+def business_impact_stage(investigation, results):
+    """
+    Assess organisational impact using enriched identity context.
+    """
+
+    results["Business Impact"] = assess_business_impact(
+        results["Enriched Identity"]
+    )
+
+    return results
+
 class OrionPipeline:
 
     def __init__(self):
@@ -66,6 +92,8 @@ class OrionPipeline:
         self.add_stage(initialise_results_stage)
         self.add_stage(ioc_extraction_stage)
         self.add_stage(identity_extraction_stage)
+        self.add_stage(identity_enrichment_stage)
+        self.add_stage(business_impact_stage)
         
     def run(self, investigation, results=None):
 
