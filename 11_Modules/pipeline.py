@@ -22,6 +22,10 @@ from extract import extract_iocs
 from identity_entities import extract_identity_entities
 from identity_enrichment import enrich_identity
 from business_impact import assess_business_impact
+from enrich import enrich_ips
+from threat_intel import lookup_ip_reputation
+from threat_engine import correlate_threat_intelligence
+from context_risk import assess_contextual_risk
 
 STAGE_NAMES = {
     "initialise_results_stage": "Initializing Investigation",
@@ -29,6 +33,10 @@ STAGE_NAMES = {
     "identity_extraction_stage": "Extracting Identity Entities",
     "identity_enrichment_stage": "Enriching Identity Context",
     "business_impact_stage": "Assessing Business Impact",
+    "ip_enrichment_stage": "Enriching IP Addresses",
+    "threat_intelligence_stage": "Querying Threat Intelligence",
+    "threat_correlation_stage": "Correlating Threat Intelligence",
+    "contextual_risk_stage": "Assessing Contextual Risk",
 }
 
 
@@ -76,6 +84,59 @@ def business_impact_stage(investigation, results):
 
     return results
 
+def ip_enrichment_stage(investigation, results):
+    """
+    Enrich extracted IP addresses with structured context.
+    """
+
+    results["Enriched IPs"] = enrich_ips(
+        results["IP Addresses"]
+    )
+
+    return results
+
+def threat_intelligence_stage(investigation, results):
+    """
+    Query threat intelligence for extracted IP addresses.
+    """
+
+    results["Threat Intelligence"] = []
+
+    for ip in results["Enriched IPs"]:
+        threat_result = lookup_ip_reputation(ip)
+        results["Threat Intelligence"].append(threat_result)
+
+    return results
+
+def threat_correlation_stage(investigation, results):
+    """
+    Correlate collected threat intelligence results.
+    """
+
+    results["Threat Correlation"] = []
+
+    if results["Threat Intelligence"]:
+        correlation_result = correlate_threat_intelligence(
+            results["Threat Intelligence"]
+        )
+
+        results["Threat Correlation"].append(
+            correlation_result
+        )
+
+    return results
+
+def contextual_risk_stage(investigation, results):
+    """
+    Calculate the overall contextual investigation risk.
+    """
+
+    results["Contextual Risk"] = assess_contextual_risk(
+        investigation
+    )
+
+    return results
+
 class OrionPipeline:
 
     def __init__(self):
@@ -94,6 +155,10 @@ class OrionPipeline:
         self.add_stage(identity_extraction_stage)
         self.add_stage(identity_enrichment_stage)
         self.add_stage(business_impact_stage)
+        self.add_stage(ip_enrichment_stage)
+        self.add_stage(threat_intelligence_stage)
+        self.add_stage(threat_correlation_stage)
+        self.add_stage(contextual_risk_stage)
         
     def run(self, investigation, results=None):
 
