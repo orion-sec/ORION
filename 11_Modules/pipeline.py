@@ -26,6 +26,9 @@ from enrich import enrich_ips
 from threat_intel import lookup_ip_reputation
 from threat_engine import correlate_threat_intelligence
 from context_risk import assess_contextual_risk
+from operational_decision import determine_operational_decision
+from attack_patterns import detect_attack_patterns
+from response_playbooks import get_response_playbook
 
 STAGE_NAMES = {
     "initialise_results_stage": "Initializing Investigation",
@@ -36,7 +39,9 @@ STAGE_NAMES = {
     "ip_enrichment_stage": "Enriching IP Addresses",
     "threat_intelligence_stage": "Querying Threat Intelligence",
     "threat_correlation_stage": "Correlating Threat Intelligence",
-    "contextual_risk_stage": "Assessing Contextual Risk",
+    "operational_decision_stage": "Determining Operational Response",
+    "attack_pattern_stage": "Detecting Attack Patterns",
+    "response_playbook_stage": "Generating Response Playbooks",
 }
 
 
@@ -137,6 +142,56 @@ def contextual_risk_stage(investigation, results):
 
     return results
 
+def operational_decision_stage(investigation, results):
+    """
+    Determine the operational response using contextual risk
+    and business impact.
+    """
+
+    results["Operational Decision"] = determine_operational_decision(
+        results["Contextual Risk"],
+        results["Business Impact"]
+    )
+
+    return results
+
+def attack_pattern_stage(investigation, results):
+    """
+    Detect recognised attack patterns from investigation evidence.
+    """
+
+    correlation_result = (
+        results["Threat Correlation"][0]
+        if results["Threat Correlation"]
+        else {
+            "verdict": "Unknown",
+            "confidence": "Low",
+            "sources": 0,
+            "reason": "No threat correlation available."
+        }
+    )
+
+    results["Attack Patterns"] = detect_attack_patterns(
+        investigation,
+        results.get("URL Scores", []),
+        results.get("Domain Intelligence", []),
+        results.get("IP Scores", []),
+        correlation_result
+    )
+
+    return results
+
+def response_playbook_stage(investigation, results):
+    """
+    Generate response playbooks for detected attack patterns.
+    """
+
+    results["Response Playbooks"] = get_response_playbook(
+        results["Attack Patterns"]
+    )
+
+    return results
+
 class OrionPipeline:
 
     def __init__(self):
@@ -159,7 +214,10 @@ class OrionPipeline:
         self.add_stage(threat_intelligence_stage)
         self.add_stage(threat_correlation_stage)
         self.add_stage(contextual_risk_stage)
-        
+        self.add_stage(operational_decision_stage)
+        self.add_stage(attack_pattern_stage)
+        self.add_stage(response_playbook_stage)
+
     def run(self, investigation, results=None):
 
         if results is None:
