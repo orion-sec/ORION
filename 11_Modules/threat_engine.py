@@ -1,3 +1,6 @@
+from threat_sources import get_threat_source
+from evidence import create_evidence
+
 def collect_threat_evidence(result):
     """
     Collects security-relevant evidence from one normalized
@@ -9,8 +12,26 @@ def collect_threat_evidence(result):
     Returns:
         A list of human-readable evidence statements.
     """
-
+    
     evidence = []
+
+    source = result.get("source")
+    source_metadata = get_threat_source(source)
+
+    source_name = source_metadata.get("display_name", source or "Unknown")
+    source_confidence = source_metadata.get("confidence", "Unknown")
+    source_category = source_metadata.get("category", "Unknown")
+
+    evidence.append(
+    create_evidence(
+        "Source",
+        (
+            f"Threat intelligence source is {source_name}, "
+            f"classified as {source_category} with "
+            f"{source_confidence} source confidence."
+        )
+    )
+)
 
     confidence = result.get("confidence", 0)
     reports = result.get("reports", 0)
@@ -37,28 +58,43 @@ def collect_threat_evidence(result):
 
     if usage_type:
         evidence.append(
+        create_evidence(
+            "Infrastructure",
             f"Infrastructure usage type is {usage_type}."
         )
+    )
 
     if is_public is True:
         evidence.append(
+        create_evidence(
+            "Network",
             "The IP address is publicly routable."
         )
+    )
 
     if is_whitelisted is True:
         evidence.append(
+        create_evidence(
+            "Reputation",
             "The threat-intelligence provider marks the IP as whitelisted."
         )
+    )
 
     if is_tor is True:
         evidence.append(
+        create_evidence(
+            "Network",
             "The IP address is identified as a Tor exit node."
         )
+    )
 
     if last_reported_at:
         evidence.append(
+        create_evidence(
+            "Historical",
             f"The IP was last reported at {last_reported_at}."
         )
+    )
 
     return evidence
 
@@ -76,6 +112,9 @@ def score_threat_result(result):
 
     score = 0
 
+    source = result.get("source")
+    source_metadata = get_threat_source(source)
+    source_weight = source_metadata.get("weight", 0)
     reputation = result.get("reputation", "Unknown")
     confidence = result.get("confidence", 0)
     reports = result.get("reports", 0)
@@ -87,9 +126,11 @@ def score_threat_result(result):
 
     if reputation == "Malicious":
         score += 100
+        score += source_weight
 
     elif reputation == "Suspicious":
         score += 50
+        score += source_weight
 
     if confidence >= 90:
         score += 60
