@@ -1,5 +1,6 @@
 from threat_sources import get_threat_source
 from evidence import create_evidence
+from evidence_reasoning import reason_over_evidence
 
 def collect_threat_evidence(result):
     """
@@ -199,6 +200,8 @@ def correlate_threat_intelligence(threat_results):
 
         total_score += score_threat_result(result)
 
+    findings = reason_over_evidence(evidence)
+
 
     if total_score >= 100:
         return {
@@ -207,7 +210,8 @@ def correlate_threat_intelligence(threat_results):
             "score": total_score,
             "sources": len(available_results),
             "reason": "Threat intelligence evidence produced a high-risk score.",
-            "evidence": evidence
+            "evidence": evidence,
+            "findings": findings
         }
 
     if total_score >= 25:
@@ -217,7 +221,8 @@ def correlate_threat_intelligence(threat_results):
             "score": total_score,
             "sources": len(available_results),
             "reason": "Threat intelligence evidence produced an elevated-risk score.",
-            "evidence": evidence
+            "evidence": evidence,
+            "findings": findings
         }
 
     return {
@@ -226,6 +231,7 @@ def correlate_threat_intelligence(threat_results):
         "score": total_score,
         "sources": len(available_results),
         "reason": "Threat intelligence evidence did not reach the suspicious threshold.",
-        "evidence": evidence
+        "evidence": evidence,
+        "findings": findings
     }
         
