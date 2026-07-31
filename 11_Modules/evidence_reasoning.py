@@ -7,6 +7,35 @@ def create_finding(category, finding):
         "finding": finding
     }
 
+def reason_about_infrastructure(item):
+    """
+    Produces an infrastructure finding from infrastructure evidence.
+    """
+    return create_finding(
+        "Infrastructure",
+        (
+            "The investigated IP appears to originate "
+            "from hosted or data-centre infrastructure."
+        )
+    )
+
+def reason_about_network(item):
+    """
+    Produces network findings from network evidence.
+    """
+    return create_finding(
+        "Network",
+        (
+            "The investigated IP is publicly accessible "
+            "over the Internet."
+        )
+    )
+
+REASONING_ROUTES = {
+    "Infrastructure": reason_about_infrastructure,
+    "Network": reason_about_network,
+}
+
 def reason_over_evidence(evidence):
     """
     Converts structured evidence into structured findings.
@@ -15,17 +44,12 @@ def reason_over_evidence(evidence):
 
     for item in evidence:
         category = item.get("category")
-        statement = item.get("statement")
 
-        if category == "Infrastructure":
+        handler = REASONING_ROUTES.get(category)
+
+        if handler:
             findings.append(
-                create_finding(
-                    "Infrastructure",
-                    (
-                        "The investigated IP appears to originate "
-                        "from hosted or data-centre infrastructure."
-                    )
-                )
+                handler(item)
             )
 
     return findings
