@@ -14,4 +14,6 @@ class PipelineRun(BaseModel):
 
     questions: list = field(default_factory=list)
 
+    hypotheses: list = field(default_factory=list)
+
     status: str = "Running"
