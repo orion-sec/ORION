@@ -28,7 +28,7 @@ def generate_infrastructure_questions(finding):
     return [
         create_question(
             question="Is this infrastructure expected for this environment?",
-            reason=finding.get("finding")
+            reason=finding.finding
         )
     ]
 
@@ -47,7 +47,7 @@ def create_questions_from_findings(findings):
 
     for finding in findings:
 
-        category = finding.get("category")
+        category = finding.category
 
         handler = QUESTION_GENERATORS.get(category)
 

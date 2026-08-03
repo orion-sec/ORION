@@ -1,9 +1,11 @@
+from rankers.hypothesis_ranker import rank_hypotheses
 from reasoners.hypothesis_reasoner import reason_from_infrastructure
+
 
 """
 Hypothesis Pipeline
 
-Transforms Finding objects into Hypothesis objects.
+Generates and ranks competing investigation hypotheses.
 """
 
 
@@ -15,9 +17,7 @@ def generate_hypotheses(findings):
     hypotheses = []
 
     hypotheses.extend(
-
         reason_from_infrastructure(findings)
-
     )
 
-    return hypotheses
+    return rank_hypotheses(hypotheses)
