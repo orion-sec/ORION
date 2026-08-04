@@ -1,1 +1,4 @@
 from .hypothesis_factory import create_hypothesis
+from .outcome_factory import create_outcome
+from .narrative_factory import create_incident_narrative
+from .indicator_factory import create_indicator_profile

@@ -1,0 +1,499 @@
+from factories.outcome_factory import create_outcome
+from models.investigation_outcome import Disposition
+
+from .confidence_engine import calculate_confidence
+
+
+"""
+ORION Investigation Decision Engine
+
+Produces deterministic and explainable investigation outcomes
+from ranked hypotheses, normalized risk signals, and verified context.
+"""
+
+
+def _get_list(context, key):
+    """
+    Safely returns a context field as a list.
+    """
+
+    value = context.get(key, [])
+
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        return value
+
+    return [str(value)]
+
+def build_decision(
+    disposition,
+    confidence,
+    reason,
+    leading_hypothesis,
+    assessment,
+    context,
+    default_actions,
+    default_questions=None
+):
+    """
+    Builds a standardized and explainable InvestigationOutcome.
+    """
+
+    supporting_evidence = _get_list(
+        context,
+        "supporting_evidence"
+    )
+
+    contradicting_evidence = _get_list(
+        context,
+        "contradicting_evidence"
+    )
+
+    unresolved_questions = _get_list(
+        context,
+        "unresolved_questions"
+    )
+
+    recommended_actions = _get_list(
+        context,
+        "recommended_actions"
+    )
+
+    explainability = [
+        leading_hypothesis.explanation,
+        *assessment.explanations,
+        *supporting_evidence
+    ]
+
+    return create_outcome(
+        disposition=disposition,
+        confidence=confidence,
+        reason=reason,
+        supporting_evidence=explainability,
+        contradicting_evidence=contradicting_evidence,
+        unresolved_questions=(
+            unresolved_questions
+            or default_questions
+            or []
+        ),
+        recommended_actions=(
+            recommended_actions
+            or default_actions
+        )
+    )
+
+def determine_outcome(hypotheses, signals=None, decision_context=None):
+    """
+    Determines ORION's investigation disposition.
+
+    Args:
+        hypotheses:
+            Ranked Hypothesis objects.
+
+        signals:
+            Normalized 0–100 investigation-risk signals.
+
+        decision_context:
+            Verified investigation facts used for deterministic
+            classification.
+
+    Returns:
+        InvestigationOutcome
+    """
+
+    signals = signals or {}
+    context = decision_context or {}
+
+    supporting_evidence = _get_list(context, "supporting_evidence")
+    contradicting_evidence = _get_list(context, "contradicting_evidence")
+    unresolved_questions = _get_list(context, "unresolved_questions")
+    recommended_actions = _get_list(context, "recommended_actions")
+
+    if not hypotheses:
+        return create_outcome(
+            disposition=Disposition.INSUFFICIENT_EVIDENCE,
+            confidence=0,
+            reason="No investigation hypotheses were available.",
+            supporting_evidence=supporting_evidence,
+            contradicting_evidence=contradicting_evidence,
+            unresolved_questions=(
+                unresolved_questions
+                or [
+                    "Additional evidence is required before a disposition can be reached."
+                ]
+            ),
+            recommended_actions=(
+                recommended_actions
+                or [
+                    "Collect endpoint, identity, network, business-context, "
+                    "and threat-intelligence evidence."
+                ]
+            )
+        )
+
+    leading_hypothesis = hypotheses[0]
+
+    decision_signals = signals.copy()
+
+    decision_signals.setdefault(
+        "evidence_strength",
+        leading_hypothesis.confidence
+    )
+
+    decision_signals.setdefault(
+        "hypothesis_support",
+        leading_hypothesis.confidence
+    )
+
+    assessment = calculate_confidence(decision_signals)
+    confidence = assessment.final_score
+
+    explainability = [
+        leading_hypothesis.explanation,
+        *assessment.explanations,
+        *supporting_evidence
+    ]
+
+    #
+    # 1. Confirmed malicious or unauthorised activity
+    #
+    if context.get("confirmed_malicious") is True:
+        return build_decision(
+            disposition=Disposition.TRUE_POSITIVE,
+            confidence=confidence,
+            reason=(
+                "The alert correctly identified confirmed malicious "
+                "or unauthorised activity."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Escalate the incident.",
+                "Contain affected entities.",
+                "Preserve evidence.",
+                "Execute the approved incident-response playbook."
+            ]
+        )
+
+    #
+    # 2. Detection logic or telemetry was incorrect
+    #
+    if context.get("detection_incorrect") is True:
+        return build_decision(
+            disposition=Disposition.FALSE_POSITIVE,
+            confidence=confidence,
+            reason=(
+                "The alert was generated by incorrect detection logic, "
+                "misclassified telemetry, or an invalid detection condition."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Close the alert as a false positive.",
+                "Review and tune the detection rule.",
+                "Document the invalid triggering condition."
+            ]
+        )
+
+    #
+    # 3. Approved security testing
+    #
+    if context.get("authorized_security_testing") is True:
+        return build_decision(
+            disposition=Disposition.AUTHORIZED_SECURITY_TESTING,
+            confidence=confidence,
+            reason=(
+                "The detected activity matched an approved security test "
+                "or vulnerability-assessment exercise."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Close as authorised security testing.",
+                "Retain the evidence for audit.",
+                "Confirm that the activity remained within the approved scope."
+            ]
+        )
+
+    #
+    # 4. Approved administrative activity
+    #
+    if context.get("authorized_administrative_activity") is True:
+        return build_decision(
+            disposition=Disposition.AUTHORIZED_ADMINISTRATIVE_ACTIVITY,
+            confidence=confidence,
+            reason=(
+                "The detected activity was performed by an authorised "
+                "administrator for a legitimate operational purpose."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Close as authorised administrative activity.",
+                "Retain the approval and activity evidence.",
+                "Confirm compliance with privileged-access procedures."
+            ]
+        )
+
+    #
+    # 5. Correctly detected but legitimate activity
+    #
+    if (
+        context.get("activity_observed") is True
+        and context.get("activity_authorized") is True
+    ):
+        return build_decision(
+            disposition=Disposition.BENIGN_POSITIVE,
+            confidence=confidence,
+            reason=(
+                "The detection correctly identified the activity, but the "
+                "activity was verified as legitimate and authorised."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Close as a benign positive.",
+                "Retain the validation evidence.",
+                "Consider tuning only if the activity is expected to recur."
+            ]
+        )
+
+    #
+    # 6. Policy violation without confirmed malicious intent
+    #
+    if context.get("policy_violation") is True:
+        return build_decision(
+            disposition=Disposition.POLICY_VIOLATION,
+            confidence=confidence,
+            reason=(
+                "The activity violated an organisational security policy, "
+                "although malicious intent has not been confirmed."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Document the policy violation.",
+                "Notify the appropriate owner or manager.",
+                "Apply the approved policy-enforcement process."
+            ]
+        )
+
+    #
+    # 7. Security configuration problem
+    #
+    if context.get("misconfiguration") is True:
+        return build_decision(
+            disposition=Disposition.MISCONFIGURATION,
+            confidence=confidence,
+            reason=(
+                "The investigation identified a security or system "
+                "configuration weakness rather than confirmed malicious activity."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Assign remediation to the system owner.",
+                "Correct the configuration.",
+                "Validate the fix and monitor for recurrence."
+            ]
+        )
+
+    #
+    # 8. Infrastructure or service reliability issue
+    #
+    if context.get("infrastructure_issue") is True:
+        return build_decision(
+            disposition=Disposition.INFRASTRUCTURE_ISSUE,
+            confidence=confidence,
+            reason=(
+                "The alert was associated with an infrastructure, service, "
+                "availability, or operational reliability issue."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Route the issue to the infrastructure owner.",
+                "Restore or stabilise the affected service.",
+                "Continue security monitoring until normal operation resumes."
+            ]
+        )
+
+    #
+    # 9. Material business exposure without confirmed compromise
+    #
+    if context.get("business_risk") is True:
+        return build_decision(
+            disposition=Disposition.BUSINESS_RISK,
+            confidence=confidence,
+            reason=(
+                "The investigation identified material business exposure "
+                "without sufficient evidence of confirmed malicious compromise."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_actions=[
+                "Notify the business or risk owner.",
+                "Document the exposure and proposed controls.",
+                "Track remediation through the risk-management process."
+            ]
+        )
+
+    #
+    # 10. Worth pursuing through proactive threat hunting
+    #
+    if context.get("threat_hunt_candidate") is True:
+        return build_decision(
+            disposition=Disposition.THREAT_HUNT_CANDIDATE,
+            confidence=confidence,
+            reason=(
+                "The available pattern is not conclusive enough for an "
+                "incident declaration but warrants proactive investigation "
+                "across the environment."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_questions=[
+                "Does the same behaviour exist on other users, hosts, or identities?"
+            ],
+            default_actions=[
+                "Create a threat-hunting hypothesis.",
+                "Search historical telemetry for related activity.",
+                "Escalate if additional supporting indicators are identified."
+            ]
+        )
+
+    #
+    # Explicit insufficient evidence state
+    #
+    if context.get("insufficient_evidence") is True:
+        return build_decision(
+            disposition=Disposition.INSUFFICIENT_EVIDENCE,
+            confidence=confidence,
+            reason=(
+                "The available telemetry is insufficient to support "
+                "a reliable investigation disposition."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_questions=[
+                "What additional evidence is required to complete the investigation?"
+            ],
+            default_actions=[
+                "Collect endpoint telemetry.",
+                "Acquire identity and authentication logs.",
+                "Collect relevant network and threat-intelligence evidence.",
+                "Do not close the alert until sufficient evidence is available."
+            ]
+        )
+    
+    #
+    # Explicit analyst review requirement
+    #
+    if context.get("requires_human_review") is True:
+        return build_decision(
+            disposition=Disposition.NEEDS_HUMAN_REVIEW,
+            confidence=confidence,
+            reason=(
+                "The investigation requires analyst review because "
+                "the available evidence or business context is inconclusive."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_questions=[
+                "Analyst validation is required before final disposition."
+            ],
+            default_actions=[
+                "Assign the investigation to a Tier 2 analyst.",
+                "Collect additional relevant telemetry.",
+                "Review the evidence manually before closure or escalation."
+            ]
+        )
+    
+    #
+    # 11. Conflicting or incomplete evidence
+    #
+    if (
+        context.get("evidence_conflicting") is True
+        or contradicting_evidence
+    ):
+        return build_decision(
+            disposition=Disposition.NEEDS_HUMAN_REVIEW,
+            confidence=confidence,
+            reason=(
+                "The available evidence is conflicting and requires "
+                "analyst judgement before a final disposition is assigned."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_questions=[
+                "Which evidence source is most reliable?",
+                "What additional telemetry can resolve the contradiction?"
+            ],
+            default_actions=[
+                "Escalate for analyst review.",
+                "Validate contradictory evidence against authoritative sources."
+            ]
+        )
+
+    #
+    # 12. Strong risk score without deterministic confirmation
+    #
+    if confidence >= 80:
+        return build_decision(
+            disposition=Disposition.SUSPICIOUS,
+            confidence=confidence,
+            reason=(
+                "The investigation produced a high-risk confidence score, "
+                "but malicious activity has not yet been deterministically confirmed. "
+                f"Leading hypothesis: {leading_hypothesis.title}."
+            ),
+            leading_hypothesis=leading_hypothesis,
+            assessment=assessment,
+            context=context,
+            default_questions=[
+                "Can malicious or unauthorised activity be independently confirmed?"
+            ],
+            default_actions=[
+                "Escalate for deeper investigation.",
+                "Validate endpoint, identity, network, and threat-intelligence telemetry."
+            ]
+        )
+
+    #
+    # 13. Evidence exists but cannot support a final decision
+    #
+    return build_decision(
+        disposition=Disposition.NEEDS_HUMAN_REVIEW,
+        confidence=confidence,
+        reason=(
+            "Evidence and hypotheses are available, but they do not yet "
+            "support a deterministic final disposition."
+        ),
+        leading_hypothesis=leading_hypothesis,
+        assessment=assessment,
+        context=context,
+        default_questions=[
+            "Is the observed activity authorised?",
+            "Is there evidence of malicious intent or impact?",
+            "Does the activity match known normal behaviour?"
+        ],
+        default_actions=[
+            "Continue evidence collection.",
+            "Request analyst validation before closure or escalation."
+        ]
+    )
