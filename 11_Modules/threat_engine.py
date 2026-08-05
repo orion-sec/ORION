@@ -44,17 +44,26 @@ def collect_threat_evidence(result):
 
     if confidence >= 80:
         evidence.append(
-            f"Abuse confidence score is high at {confidence}%."
+            create_evidence(
+                "Threat Intelligence",
+                f"Abuse confidence score is high at {confidence}%.",
+            )
         )
 
     elif confidence >= 25:
         evidence.append(
-            f"Abuse confidence score is elevated at {confidence}%."
+            create_evidence(
+                "Threat Intelligence",
+                f"Abuse confidence score is elevated at {confidence}%.",
+            )
         )
 
     if reports > 0:
         evidence.append(
-            f"The IP has {reports} abuse report(s)."
+            create_evidence(
+                "Threat Intelligence",
+                f"The IP has {reports} abuse report(s).",
+            )
         )
 
     if usage_type:
@@ -179,7 +188,10 @@ def correlate_threat_intelligence(threat_results):
     evidence = []
 
     for result in threat_results:
-        if result["status"] == "Available":
+        if not isinstance(result, dict):
+            continue
+
+        if result.get("status") == "Available":
             available_results.append(result)
 
     if not available_results:

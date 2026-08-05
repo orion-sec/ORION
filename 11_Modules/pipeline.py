@@ -30,6 +30,185 @@ from operational_decision import determine_operational_decision
 from attack_patterns import detect_attack_patterns
 from response_playbooks import get_response_playbook
 
+from factories.case_factory import create_investigation_case
+from models.investigation_case import (
+    CaseSeverity,
+    CaseStatus,
+)
+
+def normalise_threat_evidence(value) -> list[dict]:
+    """
+    Converts any legacy threat-intelligence output into a flat
+    list of structured evidence dictionaries.
+    """
+
+    normalised: list[dict] = []
+
+    def add_item(item, source: str = "ORION Threat Intelligence") -> None:
+        if item is None:
+            return
+
+        if isinstance(item, str):
+            cleaned = item.strip()
+
+            if cleaned:
+                normalised.append(
+                    {
+                        "category": "Threat Intelligence",
+                        "finding": cleaned,
+                        "evidence": cleaned,
+                        "source": source,
+                    }
+                )
+
+            return
+
+        if isinstance(item, dict):
+            evidence_keys = {
+                "category",
+                "finding",
+                "evidence",
+                "reason",
+                "description",
+            }
+
+            # This dictionary is one evidence record.
+            if evidence_keys.intersection(item.keys()):
+                finding = (
+                    item.get("finding")
+                    or item.get("evidence")
+                    or item.get("reason")
+                    or item.get("description")
+                    or "Threat-intelligence evidence was identified."
+                )
+
+                normalised.append(
+                    {
+                        **item,
+                        "category": str(
+                            item.get("category")
+                            or "Threat Intelligence"
+                        ),
+                        "finding": str(finding),
+                        "evidence": str(
+                            item.get("evidence")
+                            or finding
+                        ),
+                        "source": str(
+                            item.get("source")
+                            or source
+                        ),
+                    }
+                )
+
+                return
+
+            # This is a container dictionary.
+            for key, child_value in item.items():
+                add_item(
+                    child_value,
+                    source=f"{source}: {key}",
+                )
+
+            return
+
+        if isinstance(item, (list, tuple, set)):
+            for child_value in item:
+                add_item(child_value, source=source)
+
+            return
+
+        cleaned = str(item).strip()
+
+        if cleaned:
+            normalised.append(
+                {
+                    "category": "Threat Intelligence",
+                    "finding": cleaned,
+                    "evidence": cleaned,
+                    "source": source,
+                }
+            )
+
+    add_item(value)
+
+    return normalised
+
+def build_investigation_text(investigation) -> str:
+    """
+    Converts structured alert data into searchable investigation text.
+
+    Older ORION extraction modules expect plain text, while modern
+    connectors provide structured dictionaries.
+    """
+
+    if investigation is None:
+        return ""
+
+    if isinstance(investigation, str):
+        return investigation
+
+    if isinstance(investigation, dict):
+        preferred_fields = (
+            "title",
+            "description",
+            "summary",
+            "details",
+            "alert_type",
+            "category",
+            "user",
+            "affected_user",
+            "host",
+            "device",
+            "affected_host",
+            "ip_address",
+            "ip",
+            "url",
+            "domain",
+            "file_hash",
+            "process_chain",
+        )
+
+        text_parts: list[str] = []
+
+        for field_name in preferred_fields:
+            value = investigation.get(field_name)
+
+            if value is None:
+                continue
+
+            if isinstance(value, (list, tuple, set)):
+                text_parts.extend(
+                    str(item).strip()
+                    for item in value
+                    if str(item).strip()
+                )
+
+            elif isinstance(value, dict):
+                text_parts.extend(
+                    f"{key}: {item}"
+                    for key, item in value.items()
+                    if item is not None
+                )
+
+            else:
+                cleaned_value = str(value).strip()
+
+                if cleaned_value:
+                    text_parts.append(cleaned_value)
+
+        # Preserve any useful fields not included above.
+        for key, value in investigation.items():
+            if key in preferred_fields or value is None:
+                continue
+
+            if isinstance(value, (str, int, float, bool)):
+                text_parts.append(f"{key}: {value}")
+
+        return "\n".join(dict.fromkeys(text_parts))
+
+    return str(investigation)
+
 STAGE_NAMES = {
     "initialise_results_stage": "Initializing Investigation",
     "ioc_extraction_stage": "Extracting Indicators of Compromise",
@@ -42,15 +221,24 @@ STAGE_NAMES = {
     "operational_decision_stage": "Determining Operational Response",
     "attack_pattern_stage": "Detecting Attack Patterns",
     "response_playbook_stage": "Generating Response Playbooks",
+    "case_creation_stage": "Creating Investigation Case",
 }
 
 
 def ioc_extraction_stage(investigation, results):
     """
-    Extract IOCs from the investigation narrative.
+    Extract IOCs from structured or unstructured investigation data.
     """
 
-    ioc_results = extract_iocs(investigation)
+    investigation_text = build_investigation_text(
+        investigation
+    )
+
+    results["Investigation Text"] = investigation_text
+
+    ioc_results = extract_iocs(
+        investigation_text
+    )
 
     results.update(ioc_results)
 
@@ -58,12 +246,26 @@ def ioc_extraction_stage(investigation, results):
 
 def identity_extraction_stage(investigation, results):
     """
-    Extract identity entities from the investigation narrative.
+    Extract identity entities from structured or unstructured
+    investigation data.
     """
 
-    results["Identity Entities"] = extract_identity_entities(
-        investigation
+    investigation_text = results.get(
+        "Investigation Text"
     )
+
+    if not investigation_text:
+        investigation_text = build_investigation_text(
+            investigation
+        )
+
+        results["Investigation Text"] = investigation_text
+
+    identity_results = extract_identity_entities(
+        investigation_text
+    )
+
+    results["Identity Entities"] = identity_results
 
     return results
 
@@ -111,23 +313,27 @@ def threat_intelligence_stage(investigation, results):
         threat_result = lookup_ip_reputation(ip)
         results["Threat Intelligence"].append(threat_result)
 
+
     return results
 
 def threat_correlation_stage(investigation, results):
     """
-    Correlate collected threat intelligence results.
+    Correlates the original normalized threat-intelligence results.
     """
 
-    results["Threat Correlation"] = []
+    threat_results = results.get(
+        "Threat Intelligence",
+        [],
+    )
 
-    if results["Threat Intelligence"]:
-        correlation_result = correlate_threat_intelligence(
-            results["Threat Intelligence"]
-        )
+    if not isinstance(threat_results, list):
+        threat_results = [threat_results]
 
-        results["Threat Correlation"].append(
-            correlation_result
-        )
+    correlation_result = correlate_threat_intelligence(
+        threat_results
+    )
+
+    results["Threat Correlation"] = correlation_result
 
     return results
 
@@ -160,23 +366,28 @@ def attack_pattern_stage(investigation, results):
     Detect recognised attack patterns from investigation evidence.
     """
 
-    correlation_result = (
-        results["Threat Correlation"][0]
-        if results["Threat Correlation"]
-        else {
+    correlation_result = results.get(
+        "Threat Correlation"
+    )
+
+    if not isinstance(correlation_result, dict):
+        correlation_result = {
             "verdict": "Unknown",
             "confidence": "Low",
             "sources": 0,
-            "reason": "No threat correlation available."
+            "reason": "No threat correlation available.",
         }
+
+    investigation_text = build_investigation_text(
+        investigation
     )
 
     results["Attack Patterns"] = detect_attack_patterns(
-        investigation,
+        investigation_text,
         results.get("URL Scores", []),
         results.get("Domain Intelligence", []),
         results.get("IP Scores", []),
-        correlation_result
+        correlation_result,
     )
 
     return results
@@ -191,6 +402,343 @@ def response_playbook_stage(investigation, results):
     )
 
     return results
+
+def case_creation_stage(investigation, results):
+    """
+    Creates one central InvestigationCase from the completed
+    ORION investigation pipeline results.
+    """
+
+    operational_decision = results.get(
+        "Operational Decision",
+        {},
+    )
+
+    business_impact = results.get(
+        "Business Impact",
+        {},
+    )
+
+    contextual_risk = results.get(
+        "Contextual Risk",
+        {},
+    )
+
+    live_identity_profile = results.get(
+        "Live Identity Profile"
+    )
+
+    enriched_identity = results.get(
+        "Enriched Identity",
+        {},
+    )
+
+    #
+    # Resolve alert metadata.
+    #
+    if isinstance(investigation, dict):
+        title = str(
+            investigation.get("title")
+            or investigation.get("alert_title")
+            or investigation.get("name")
+            or "ORION Security Investigation"
+        )
+
+        alert_id = str(
+            investigation.get("alert_id")
+            or investigation.get("id")
+            or ""
+        )
+
+        alert_source = str(
+            investigation.get("source")
+            or investigation.get("alert_source")
+            or "ORION"
+        )
+
+        alert_type = str(
+            investigation.get("alert_type")
+            or investigation.get("category")
+            or ""
+        )
+
+        affected_user = str(
+            investigation.get("user")
+            or investigation.get("affected_user")
+            or ""
+        )
+
+        affected_host = str(
+            investigation.get("host")
+            or investigation.get("device")
+            or investigation.get("affected_host")
+            or ""
+        )
+
+        raw_alert = investigation
+
+    else:
+        title = "ORION Security Investigation"
+        alert_id = ""
+        alert_source = "ORION"
+        alert_type = ""
+        affected_user = ""
+        affected_host = ""
+        raw_alert = {
+            "investigation": str(investigation),
+        }
+
+    #
+    # Prefer the live Microsoft identity where available.
+    #
+    if live_identity_profile is not None:
+        affected_user = (
+            live_identity_profile.user_principal_name
+            or affected_user
+        )
+
+    elif isinstance(enriched_identity, dict):
+        affected_user = str(
+            enriched_identity.get("user_principal_name")
+            or enriched_identity.get("upn")
+            or enriched_identity.get("user")
+            or affected_user
+        )
+
+    #
+    # Resolve severity.
+    #
+    severity_value = ""
+
+    if isinstance(operational_decision, dict):
+        severity_value = (
+            operational_decision.get("severity")
+            or operational_decision.get("priority")
+            or operational_decision.get("risk")
+            or ""
+        )
+
+    if not severity_value and isinstance(
+        contextual_risk,
+        dict,
+    ):
+        severity_value = (
+            contextual_risk.get("severity")
+            or contextual_risk.get("risk")
+            or contextual_risk.get("level")
+            or ""
+        )
+
+    case = create_investigation_case(
+        title=title,
+        alert_id=alert_id,
+        alert_source=alert_source,
+        alert_type=alert_type,
+        severity=map_case_severity(severity_value),
+        status=CaseStatus.INVESTIGATING,
+        affected_user=affected_user,
+        affected_host=affected_host,
+        raw_alert=raw_alert,
+    )
+
+    #
+    # Attach the live Microsoft Graph identity profile.
+    #
+    case.identity_profile = live_identity_profile
+
+    #
+    # Business-impact values.
+    #
+    if isinstance(business_impact, dict):
+        score = business_impact.get("score", 0)
+
+        try:
+            case.business_impact_score = int(score)
+        except (TypeError, ValueError):
+            case.business_impact_score = 0
+
+        case.business_impact_level = str(
+            business_impact.get("impact")
+            or business_impact.get("level")
+            or "Unknown"
+        )
+
+    #
+    # Confidence.
+    #
+    if isinstance(operational_decision, dict):
+        confidence_value = operational_decision.get(
+            "confidence",
+            0,
+        )
+
+        try:
+            case.confidence = int(confidence_value)
+        except (TypeError, ValueError):
+            case.confidence = 0
+
+    #
+    # Transfer evidence from existing pipeline outputs.
+    #
+    evidence_sources = [
+        results.get("Threat Intelligence"),
+        results.get("Threat Correlation"),
+        results.get("Contextual Risk"),
+        results.get("Attack Patterns"),
+    ]
+
+    for evidence_source in evidence_sources:
+        for evidence_item in normalise_text_items(
+            evidence_source
+        ):
+            case.add_evidence(evidence_item)
+
+    #
+    # Transfer response recommendations.
+    #
+    for action in normalise_text_items(
+        results.get("Response Playbooks")
+    ):
+        case.add_recommended_action(action)
+
+    #
+    # Preserve the existing pipeline results for later API/UI use.
+    #
+    case.metadata["pipeline_results"] = {
+        key: value
+        for key, value in results.items()
+        if key not in {
+            "Investigation Case",
+            "Live Identity Profile",
+        }
+    }
+
+    #
+    # Add identity-enrichment context to the timeline.
+    #
+    if live_identity_profile is not None:
+        case.add_timeline_event(
+            event_type="Identity Enriched",
+            description=(
+                "ORION enriched the affected identity using "
+                "live Microsoft Graph data."
+            ),
+            source="Microsoft Graph",
+            entity=(
+                live_identity_profile.user_principal_name
+                or live_identity_profile.object_id
+            ),
+            metadata={
+                "display_name": (
+                    live_identity_profile.display_name
+                ),
+                "groups": live_identity_profile.groups,
+                "registered_devices": (
+                    live_identity_profile.registered_devices
+                ),
+                "risk_level": (
+                    live_identity_profile.risk_level
+                ),
+                "enrichment_status": (
+                    live_identity_profile.enrichment_status
+                ),
+            },
+        )
+
+        privileged_groups = {
+            "global administrator",
+            "privileged role administrator",
+            "security administrator",
+            "exchange administrator",
+            "user administrator",
+        }
+
+        matched_privileged_groups = [
+            group
+            for group in live_identity_profile.groups
+            if group.strip().lower() in privileged_groups
+        ]
+
+        if matched_privileged_groups:
+            case.tags.append("Privileged Identity")
+
+            case.add_evidence(
+                "The affected identity has privileged group "
+                "membership: "
+                + ", ".join(matched_privileged_groups)
+                + "."
+            )
+
+    results["Investigation Case"] = case
+
+    return results
+
+def normalise_text_items(value) -> list[str]:
+    """
+    Converts different pipeline result structures into unique text items.
+    """
+
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        cleaned_value = value.strip()
+        return [cleaned_value] if cleaned_value else []
+
+    if isinstance(value, dict):
+        text_items = []
+
+        for key in (
+            "evidence",
+            "reason",
+            "reasons",
+            "recommendations",
+            "recommended_actions",
+            "actions",
+            "playbook",
+        ):
+            if key in value:
+                text_items.extend(
+                    normalise_text_items(value[key])
+                )
+
+        if text_items:
+            return list(dict.fromkeys(text_items))
+
+        return [str(value)]
+
+    if isinstance(value, (list, tuple, set)):
+        text_items = []
+
+        for item in value:
+            text_items.extend(
+                normalise_text_items(item)
+            )
+
+        return list(dict.fromkeys(text_items))
+
+    return [str(value)]
+
+def map_case_severity(value) -> CaseSeverity:
+    """
+    Converts pipeline severity values into the InvestigationCase enum.
+    """
+
+    cleaned_value = str(value or "").strip().lower()
+
+    severity_mapping = {
+        "informational": CaseSeverity.INFORMATIONAL,
+        "info": CaseSeverity.INFORMATIONAL,
+        "low": CaseSeverity.LOW,
+        "medium": CaseSeverity.MEDIUM,
+        "high": CaseSeverity.HIGH,
+        "critical": CaseSeverity.CRITICAL,
+    }
+
+    return severity_mapping.get(
+        cleaned_value,
+        CaseSeverity.INFORMATIONAL,
+    )
 
 class OrionPipeline:
 
@@ -217,6 +765,7 @@ class OrionPipeline:
         self.add_stage(operational_decision_stage)
         self.add_stage(attack_pattern_stage)
         self.add_stage(response_playbook_stage)
+        self.add_stage(case_creation_stage)
 
     def run(self, investigation, results=None):
 

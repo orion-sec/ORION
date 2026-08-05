@@ -1,10 +1,58 @@
+from typing import Any
+
+
+def _build_context_text(investigation: Any) -> str:
+    """
+    Converts structured or unstructured investigation data into
+    searchable lowercase text for contextual-risk assessment.
+    """
+
+    if investigation is None:
+        return ""
+
+    if isinstance(investigation, str):
+        return investigation.lower()
+
+    if isinstance(investigation, dict):
+        text_parts: list[str] = []
+
+        for key, value in investigation.items():
+            if value is None:
+                continue
+
+            if isinstance(value, dict):
+                for child_key, child_value in value.items():
+                    if child_value is not None:
+                        text_parts.append(
+                            f"{child_key}: {child_value}"
+                        )
+
+            elif isinstance(value, (list, tuple, set)):
+                text_parts.extend(
+                    str(item)
+                    for item in value
+                    if item is not None
+                )
+
+            else:
+                text_parts.append(
+                    f"{key}: {value}"
+                )
+
+        return "\n".join(text_parts).lower()
+
+    return str(investigation).lower()
+
+
 def assess_contextual_risk(investigation):
     """
     Assess the seriousness of an investigation using behavioural
     and incident-context evidence found in the investigation narrative.
     """
 
-    investigation_text = investigation.lower()
+    investigation_text = _build_context_text(
+        investigation
+    )
 
     score = 0
     evidence = []
@@ -21,7 +69,9 @@ def assess_contextual_risk(investigation):
         ]
     ):
         score += 25
-        evidence.append("User credentials were submitted to a suspicious page.")
+        evidence.append(
+            "User credentials were submitted to a suspicious page."
+        )
 
     if any(
         phrase in investigation_text
@@ -34,7 +84,9 @@ def assess_contextual_risk(investigation):
         ]
     ):
         score += 25
-        evidence.append("Suspicious MFA or authentication-method activity identified.")
+        evidence.append(
+            "Suspicious MFA or authentication-method activity identified."
+        )
 
     if any(
         phrase in investigation_text
@@ -47,7 +99,9 @@ def assess_contextual_risk(investigation):
         ]
     ):
         score += 20
-        evidence.append("Suspicious mailbox rule or forwarding activity identified.")
+        evidence.append(
+            "Suspicious mailbox rule or forwarding activity identified."
+        )
 
     if any(
         phrase in investigation_text
@@ -60,9 +114,10 @@ def assess_contextual_risk(investigation):
         ]
     ):
         score += 15
-        evidence.append("Suspicious authentication activity identified.")
+        evidence.append(
+            "Suspicious authentication activity identified."
+        )
 
-        # Detect sensitive mailbox or data access using concept matching
     mailbox_keywords = [
         "mailbox",
         "email",
@@ -83,29 +138,46 @@ def assess_contextual_risk(investigation):
     ]
 
     if (
-        any(word in investigation_text for word in mailbox_keywords)
-        and any(word in investigation_text for word in access_keywords)
-        and any(word in investigation_text for word in sensitive_keywords)
+        any(
+            word in investigation_text
+            for word in mailbox_keywords
+        )
+        and any(
+            word in investigation_text
+            for word in access_keywords
+        )
+        and any(
+            word in investigation_text
+            for word in sensitive_keywords
+        )
     ):
         score += 15
-        evidence.append("Potential access to sensitive mailbox or confidential information identified.")
+        evidence.append(
+            "Potential access to sensitive mailbox or confidential "
+            "information identified."
+        )
 
     if score >= 70:
         severity = "Critical"
         confidence = "High"
         containment = "Immediate containment required"
+
     elif score >= 45:
         severity = "High"
         confidence = "High"
         containment = "Containment strongly recommended"
+
     elif score >= 20:
         severity = "Medium"
         confidence = "Medium"
         containment = "Further investigation required"
+
     else:
         severity = "Low"
         confidence = "Low"
-        containment = "Monitor and validate available evidence"
+        containment = (
+            "Monitor and validate available evidence"
+        )
 
     return {
         "score": score,
