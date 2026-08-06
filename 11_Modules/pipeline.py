@@ -18,23 +18,24 @@ def initialise_results_stage(investigation, results):
 
 import time
 
-from extract import extract_iocs
-from identity_entities import extract_identity_entities
-from identity_enrichment import enrich_identity
-from business_impact import assess_business_impact
-from enrich import enrich_ips
-from threat_intel import lookup_ip_reputation
-from threat_engine import correlate_threat_intelligence
-from context_risk import assess_contextual_risk
-from operational_decision import determine_operational_decision
 from attack_patterns import detect_attack_patterns
-from response_playbooks import get_response_playbook
-
+from business_impact import assess_business_impact
+from context_risk import assess_contextual_risk
+from enrich import enrich_ips
+from extract import extract_iocs
 from factories.case_factory import create_investigation_case
+from identity_enrichment import enrich_identity
+from identity_entities import extract_identity_entities
+from models.investigation import Investigation
 from models.investigation_case import (
     CaseSeverity,
     CaseStatus,
 )
+from operational_decision import determine_operational_decision
+from response_playbooks import get_response_playbook
+from threat_engine import correlate_threat_intelligence
+from threat_intel import lookup_ip_reputation
+
 
 def normalise_threat_evidence(value) -> list[dict]:
     """
@@ -242,7 +243,13 @@ def ioc_extraction_stage(investigation, results):
 
     results.update(ioc_results)
 
+    investigation_aggregate = results.get("Investigation Aggregate")
+
+    if isinstance(investigation_aggregate, Investigation):
+        investigation_aggregate.indicators = dict(ioc_results)
+
     return results
+
 
 def identity_extraction_stage(investigation, results):
     """
@@ -250,22 +257,22 @@ def identity_extraction_stage(investigation, results):
     investigation data.
     """
 
-    investigation_text = results.get(
-        "Investigation Text"
-    )
+    investigation_text = results.get("Investigation Text")
 
     if not investigation_text:
-        investigation_text = build_investigation_text(
-            investigation
-        )
-
+        investigation_text = build_investigation_text(investigation)
         results["Investigation Text"] = investigation_text
 
-    identity_results = extract_identity_entities(
-        investigation_text
-    )
+    identity_results = extract_identity_entities(investigation_text)
 
     results["Identity Entities"] = identity_results
+
+    investigation_aggregate = results.get("Investigation Aggregate")
+
+    if isinstance(investigation_aggregate, Investigation):
+        investigation_aggregate.identity_entities = dict(
+            identity_results or {}
+        )
 
     return results
 
@@ -274,9 +281,18 @@ def identity_enrichment_stage(investigation, results):
     Enrich extracted identity entities with organisational context.
     """
 
-    results["Enriched Identity"] = enrich_identity(
-        results["Identity Entities"]
+    enriched_identity = enrich_identity(
+        results.get("Identity Entities", {})
     )
+
+    results["Enriched Identity"] = enriched_identity
+
+    investigation_aggregate = results.get("Investigation Aggregate")
+
+    if isinstance(investigation_aggregate, Investigation):
+        investigation_aggregate.identity_enrichment = dict(
+            enriched_identity or {}
+        )
 
     return results
 
@@ -285,9 +301,20 @@ def business_impact_stage(investigation, results):
     Assess organisational impact using enriched identity context.
     """
 
-    results["Business Impact"] = assess_business_impact(
+    business_impact = assess_business_impact(
         results["Enriched Identity"]
     )
+
+    results["Business Impact"] = business_impact
+
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(investigation_aggregate, Investigation):
+        investigation_aggregate.business_impact = (
+            business_impact
+        )
 
     return results
 
@@ -740,6 +767,47 @@ def map_case_severity(value) -> CaseSeverity:
         CaseSeverity.INFORMATIONAL,
     )
 
+def build_investigation_aggregate(results: dict) -> Investigation:
+    """
+    Convert the legacy pipeline results dictionary into the
+    ORION Investigation root aggregate.
+    """
+
+    identity_profile = (
+        results.get("Live Identity Profile")
+        or results.get("Identity Profile")
+        or results.get("Enriched Identity")
+    )
+
+    return Investigation(
+        narrative=results.get("Narrative"),
+        indicators=results.get("IOCs", {}),
+    identity_entities=dict(
+        results.get("Identity Entities", {}) or {}
+    ),
+    identity_enrichment=dict(
+        results.get("Enriched Identity", {}) or {}
+    ),
+        identity_profile=identity_profile,
+        enriched_ips=results.get("Enriched IPs", []),
+        threat_intelligence=results.get("Threat Intelligence", []),
+        threat_correlation=results.get("Threat Correlation", {}),
+        business_impact=results.get("Business Impact", {}),
+        contextual_risk=results.get("Contextual Risk", {}),
+        operational_decision=results.get("Operational Decision", {}),
+        attack_patterns=results.get("Attack Patterns", []),
+        response_playbooks=results.get("Response Playbooks", []),
+        hypotheses=results.get("Hypotheses", []),
+        findings=results.get("Findings", []),
+        questions=results.get("Questions", []),
+        confidence_assessment=results.get("Confidence Assessment"),
+        investigation_outcome=results.get("Investigation Outcome"),
+        investigation_case=results.get("Investigation Case"),
+        metadata={
+            "pipeline_version": "Day35",
+            "legacy_pipeline": True,
+        },
+    )
 class OrionPipeline:
 
     def __init__(self):
@@ -771,6 +839,10 @@ class OrionPipeline:
 
         if results is None:
             results = {}
+
+        investigation_aggregate = Investigation()
+
+        results["Investigation Aggregate"] = investigation_aggregate
 
         successful = 0
         failed = 0
@@ -843,4 +915,8 @@ class OrionPipeline:
 
         print("===================================")
 
-        return results  
+        completed_aggregate = build_investigation_aggregate(results)
+
+        results["Investigation Aggregate"] = completed_aggregate
+
+        return results

@@ -1,6 +1,5 @@
 from factories.narrative_factory import create_incident_narrative
 
-
 """
 ORION Incident Narrative Generator
 

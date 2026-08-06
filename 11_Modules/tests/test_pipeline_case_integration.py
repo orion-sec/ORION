@@ -2,7 +2,6 @@ from factories.identity_factory import create_identity_profile
 from models.investigation_case import InvestigationCase
 from pipeline import OrionPipeline
 
-
 """
 ORION Pipeline and Case Management Integration Validation
 
@@ -127,6 +126,44 @@ assert "Privileged Identity" in case.tags
 assert case.affected_user
 assert len(case.timeline) >= 2
 
+    
+from models.investigation import Investigation
+
+investigation_aggregate = results.get("Investigation Aggregate")
+
+assert isinstance(investigation_aggregate, Investigation)
+assert investigation_aggregate.investigation_case is case
+assert investigation_aggregate.identity_profile is live_identity_profile
+assert investigation_aggregate.threat_intelligence
+assert investigation_aggregate.threat_correlation
+assert investigation_aggregate.business_impact
+assert investigation_aggregate.contextual_risk
+assert investigation_aggregate.operational_decision
+assert investigation_aggregate.metadata["legacy_pipeline"] is True
+assert investigation_aggregate.metadata["pipeline_version"] == "Day35"
+assert investigation_aggregate.identity_entities
+assert investigation_aggregate.identity_enrichment == {}
+
+print("\nInvestigation Aggregate Validation")
+print("----------------------------------")
+
+print(f"Type:                {type(investigation_aggregate).__name__}")
+print(f"Identity Attached:   {investigation_aggregate.identity_profile is not None}")
+print(f"Case Attached:       {investigation_aggregate.investigation_case is not None}")
+print(f"Threat Correlation:  {bool(investigation_aggregate.threat_correlation)}")
+print(f"Business Impact:     {bool(investigation_aggregate.business_impact)}")
+
+print(
+    f"Identity Entities:   "
+    f"{bool(investigation_aggregate.identity_entities)}"
+)
+
+print(
+    f"Legacy Enrichment:   "
+    f"{'Available' if investigation_aggregate.identity_enrichment else 'Not available'}"
+)
+
+print("✓ Root aggregate created and populated")
 
 print("\nVALIDATION PASSED")
 print(

@@ -3,7 +3,6 @@ from models.investigation_outcome import Disposition
 
 from .confidence_engine import calculate_confidence
 
-
 """
 ORION Investigation Decision Engine
 

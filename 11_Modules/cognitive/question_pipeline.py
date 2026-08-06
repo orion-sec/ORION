@@ -1,6 +1,5 @@
 from factories.question_factory import create_questions_from_findings
 
-
 """
 Question Pipeline
 

@@ -1,7 +1,6 @@
 from connectors.auth import GraphAuthenticator
 from connectors.config import load_graph_config
 
-
 """
 ORION Live Microsoft Graph Authentication Validation
 

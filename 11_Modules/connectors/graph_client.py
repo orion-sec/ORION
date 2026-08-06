@@ -1,10 +1,10 @@
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
 from connectors.auth import GraphAuthenticator
 from connectors.config import GraphConfig
-
 
 """
 ORION Microsoft Graph Client
@@ -167,7 +167,10 @@ class GraphClient:
         Retrieves one Microsoft Entra user by object ID or UPN.
         """
 
-        identifier = user_identifier.strip()
+        identifier = quote(
+            user_identifier.strip(),
+            safe="",
+        )
 
         if not identifier:
             raise ValueError("User identifier cannot be empty.")
@@ -296,7 +299,7 @@ class GraphClient:
                     )
                 },
             )
-
+        
         except GraphRequestError as error:
             message = str(error)
 
@@ -304,3 +307,101 @@ class GraphClient:
                 return None
 
             raise
+
+    def get_mailbox_settings(
+        self,
+        user_principal_name: str,
+    ) -> dict[str, Any]:
+        """
+        Retrieves Exchange Online mailbox settings.
+        """
+
+        identifier = quote(
+            user_principal_name.strip(),
+            safe="",
+        )
+
+        return self.get(
+            endpoint=f"/users/{identifier}/mailboxSettings",
+        )
+
+    def get_recent_messages(
+        self,
+        user_principal_name: str,
+        top: int = 10,
+    ) -> list[dict[str, Any]]:
+        """
+        Retrieves the most recent mailbox messages.
+        """
+
+        identifier = quote(
+            user_principal_name.strip(),
+            safe="",
+        )
+
+        payload = self.get(
+            endpoint=f"/users/{identifier}/messages",
+            params={
+                "$top": max(1, min(top, 100)),
+                "$orderby": "receivedDateTime desc",
+                "$select": (
+                    "id,"
+                    "subject,"
+                    "from,"
+                    "sender,"
+                    "receivedDateTime,"
+                    "internetMessageId,"
+                    "isRead,"
+                    "hasAttachments,"
+                    "importance"
+                ),
+            },
+        )
+
+        messages = payload.get("value", [])
+
+        if not isinstance(messages, list):
+            raise GraphRequestError(
+                "Microsoft Graph returned an invalid message collection."
+            )
+
+        return messages
+
+    def get_message(
+        self,
+        user_principal_name: str,
+        message_id: str,
+    ) -> dict[str, Any]:
+        """
+        Retrieves one Exchange Online message.
+        """
+
+        identifier = quote(
+            user_principal_name.strip(),
+            safe="",
+        )
+
+        return self.get(
+            endpoint=(
+                f"/users/{identifier}/messages/{message_id}"
+            ),
+        )
+
+    def get_mailbox_profile(
+        self,
+        user_principal_name: str,
+    ) -> dict[str, Any]:
+        identifier = quote(
+            user_principal_name.strip(),
+            safe="",
+        )
+
+        return self.get(
+            endpoint=f"/users/{identifier}",
+            params={
+                "$select": (
+                    "id,displayName,mail,userPrincipalName,"
+                    "assignedLicenses"
+                )
+            },
+        )

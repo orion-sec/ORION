@@ -4,7 +4,6 @@ from models.investigation_case import (
     CaseStatus,
 )
 
-
 """
 ORION Investigation Case Model Validation
 

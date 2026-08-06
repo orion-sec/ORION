@@ -4,7 +4,6 @@ from enrichment.identity_enrichment import (
     IdentityEnrichmentEngine,
 )
 
-
 """
 ORION Live Identity Enrichment Validation
 

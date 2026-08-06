@@ -2,7 +2,6 @@ import os
 
 from connectors.config import load_graph_config
 
-
 """
 ORION Microsoft Graph Configuration Validation
 

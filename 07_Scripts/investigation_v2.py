@@ -6,18 +6,13 @@ Enterprise Investigation Platform
 Entry point for the ORION processing pipeline.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.path.abspath("../11_Modules"))
 
-from pipeline import OrionPipeline, initialise_results_stage
-from pipeline import (
-    OrionPipeline,
-    initialise_results_stage,
-    ioc_extraction_stage,
-    identity_extraction_stage
-)
+from pipeline import OrionPipeline
+
 
 def main():
 

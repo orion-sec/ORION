@@ -1,2 +1,2 @@
-from .investigation_decision import determine_outcome
 from .confidence_engine import calculate_confidence
+from .investigation_decision import determine_outcome

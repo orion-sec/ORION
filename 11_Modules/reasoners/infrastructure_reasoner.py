@@ -1,6 +1,5 @@
 from factories.finding_factory import create_finding
 
-
 """
 Infrastructure Reasoner
 

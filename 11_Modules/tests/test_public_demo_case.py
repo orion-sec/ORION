@@ -12,7 +12,6 @@ Important:
 
 from datetime import datetime, timezone
 
-
 SEPARATOR = "=" * 92
 SECTION_SEPARATOR = "-" * 92
 
@@ -214,7 +213,7 @@ def main() -> None:
     print_field("Affected Host:", affected_host)
     print_field("Assigned To:", assigned_to)
 
-    print(f"\nObserved Process Chain")
+    print("\nObserved Process Chain")
     print(SECTION_SEPARATOR)
     print(f"  {process_chain}")
 
@@ -234,7 +233,7 @@ def main() -> None:
             f"{description}"
         )
 
-    print(f"\nAnalyst Verdict")
+    print("\nAnalyst Verdict")
     print(SECTION_SEPARATOR)
     print_field("Disposition:", "True Positive")
     print_field("Priority:", "Critical")
@@ -247,7 +246,7 @@ def main() -> None:
         ),
     )
 
-    print(f"\nDemo Metadata")
+    print("\nDemo Metadata")
     print(SECTION_SEPARATOR)
     print_field(
         "Generated At:",

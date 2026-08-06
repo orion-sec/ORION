@@ -2,7 +2,6 @@ from decision_engine.investigation_decision import determine_outcome
 from models.hypothesis import Hypothesis
 from reporting.incident_narrative import generate_incident_narrative
 
-
 alert_details = {
     "alert_id": "ORION-CRITICAL-0001",
     "title": "Malicious document execution with command-and-control activity",

@@ -1,7 +1,6 @@
 from rankers.hypothesis_ranker import rank_hypotheses
 from reasoners.hypothesis_reasoner import reason_from_infrastructure
 
-
 """
 Hypothesis Pipeline
 

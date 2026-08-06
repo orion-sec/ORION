@@ -1,6 +1,7 @@
-from threat_sources import get_threat_source
 from evidence import create_evidence
 from evidence_reasoning import reason_over_evidence
+from threat_sources import get_threat_source
+
 
 def collect_threat_evidence(result):
     """

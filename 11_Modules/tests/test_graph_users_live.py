@@ -1,7 +1,6 @@
 from connectors.config import load_graph_config
 from connectors.graph_client import GraphClient
 
-
 """
 ORION Live Microsoft Graph User Retrieval Validation
 

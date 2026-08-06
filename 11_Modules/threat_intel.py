@@ -3,7 +3,6 @@ import os
 import requests
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY")

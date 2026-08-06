@@ -1,6 +1,5 @@
 from models.confidence_assessment import ConfidenceAssessment
 
-
 """
 ORION Confidence Engine
 
@@ -63,12 +62,12 @@ def calculate_confidence(signals, weights=None):
         breakdown[signal_name] = round(contribution, 2)
 
         explanations.append(
-            (
+            
                 f"{signal_name.replace('_', ' ').title()} "
                 f"contributed {contribution:.2f} points "
                 f"from a score of {score}/100 "
                 f"with a weight of {weight:.0%}."
-            )
+            
         )
 
     final_score = round(sum(breakdown.values()))

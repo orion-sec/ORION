@@ -1,34 +1,31 @@
-import re
-import sys
 import os
+import sys
 
 sys.path.append(os.path.abspath("../11_Modules"))
 
+from attack_patterns import detect_attack_patterns
+from business_impact import assess_business_impact
+from context_risk import assess_contextual_risk
+from decision import (
+    determine_investigation_priority,
+    determine_priority,
+    recommend_action,
+    recommend_investigation_action,
+)
 from display import display_report
-from extract import extract_iocs
+from domain_intel import inspect_domains
 from enrich import enrich_ips
+from extract import extract_iocs
+from identity_enrichment import enrich_identity
+from investigation_engine import assess_investigation
+from mitre_mapping import map_attack_patterns
+from operational_decision import determine_operational_decision
+from response_playbooks import get_response_playbook
+from score import score_ip
+from threat_engine import correlate_threat_intelligence
+from threat_intel import lookup_ip_reputation
 from url_enrich import enrich_urls
 from url_score import score_url
-from score import score_ip
-from decision import (
-    recommend_action,
-    determine_priority,
-    recommend_investigation_action,
-    determine_investigation_priority
-)
-from pipeline import OrionPipeline, initialise_results_stage
-from threat_intel import lookup_ip_reputation
-from threat_engine import correlate_threat_intelligence
-from domain_intel import inspect_domains
-from mitre_mapping import map_attack_patterns
-from investigation_engine import assess_investigation
-from attack_patterns import detect_attack_patterns
-from response_playbooks import get_response_playbook
-from context_risk import assess_contextual_risk
-from identity_entities import extract_identity_entities
-from identity_enrichment import enrich_identity
-from business_impact import assess_business_impact
-from operational_decision import determine_operational_decision
 
 print("==============================")
 print("    ORION IOC EXTRACTOR v1")

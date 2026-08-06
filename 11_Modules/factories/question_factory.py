@@ -1,6 +1,5 @@
 from models.question import Question
 
-
 """
 Question Factory
 

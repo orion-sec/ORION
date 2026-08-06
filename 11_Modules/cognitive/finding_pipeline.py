@@ -1,6 +1,5 @@
 from evidence_reasoning import reason_over_evidence
 
-
 """
 Finding Pipeline
 

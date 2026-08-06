@@ -5,7 +5,6 @@ from msal import ConfidentialClientApplication
 
 from connectors.config import GraphConfig
 
-
 """
 ORION Microsoft Graph Authentication
 
@@ -51,7 +50,10 @@ class GraphAuthenticator:
             client_credential=config.client_secret,
         )
 
-    def acquire_token(self) -> GraphAccessToken:
+    def acquire_token(
+        self,
+        scope: str | None = None,
+    ) -> GraphAccessToken:
         """
         Obtains a Microsoft Graph access token.
 
@@ -59,14 +61,15 @@ class GraphAuthenticator:
             RuntimeError:
                 When Microsoft Entra ID rejects the token request.
         """
-
+        requested_scope = scope or self.config.scope
+        
         result: Any = (
             self._application.acquire_token_silent(
-                scopes=[self.config.scope],
+                scopes=[requested_scope],
                 account=None,
             )
             or self._application.acquire_token_for_client(
-                scopes=[self.config.scope]
+                scopes=[requested_scope]
             )
         )
 

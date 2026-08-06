@@ -1,8 +1,7 @@
 from cognitive.finding_pipeline import generate_findings
-from cognitive.question_pipeline import generate_questions
 from cognitive.hypothesis_pipeline import generate_hypotheses
+from cognitive.question_pipeline import generate_questions
 from decision_engine.investigation_decision import determine_outcome
-
 from models.pipeline_run import PipelineRun
 
 """

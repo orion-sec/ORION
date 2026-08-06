@@ -5,7 +5,6 @@ from models.indicator_profile import (
 )
 from reporting.indicator_summary import generate_indicator_summary
 
-
 """
 ORION IOC Intelligence Validation
 

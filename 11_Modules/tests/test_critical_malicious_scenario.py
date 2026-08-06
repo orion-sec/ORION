@@ -10,7 +10,6 @@ from decision_engine.investigation_decision import determine_outcome
 from models.hypothesis import Hypothesis
 from models.investigation_outcome import Disposition
 
-
 """
 Critical Malicious Scenario Test
 

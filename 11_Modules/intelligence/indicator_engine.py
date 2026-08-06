@@ -7,7 +7,6 @@ from models.indicator_profile import (
     IndicatorType,
 )
 
-
 """
 ORION IOC Intelligence Engine
 
