@@ -59,7 +59,7 @@ class DefenderProvider:
                 error=str(exc),
             )
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return DefenderProviderResult(
                 status="Error",
                 error=str(exc),

@@ -39,7 +39,7 @@ class EntraProvider:
                 identity=identity,
             )
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return EntraProviderResult(
                 provider=self.PROVIDER_NAME,
                 status="Unavailable",

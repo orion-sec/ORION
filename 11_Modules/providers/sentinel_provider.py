@@ -2,8 +2,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import requests
-from connectors.config import GraphConfig
 from msal import ConfidentialClientApplication
+
+from connectors.config import GraphConfig
 
 
 @dataclass
@@ -46,12 +47,23 @@ class SentinelProvider:
             scopes=[self.MANAGEMENT_SCOPE]
         )
 
+        if not isinstance(result, dict):
+            raise TypeError(
+                "Azure management authentication failed. "
+                "No token response was returned."
+            )
+
         token = result.get("access_token")
 
         if not token:
+            error_description = result.get(
+                "error_description",
+                result,
+            )
+
             raise RuntimeError(
                 "Azure management authentication failed. "
-                f"{result.get('error_description', result)}"
+                f"{error_description}"
             )
 
         return str(token)

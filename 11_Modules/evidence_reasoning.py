@@ -3,7 +3,6 @@ from reasoners.infrastructure_reasoner import reason_about_infrastructure
 from reasoners.network_reasoner import reason_about_network
 from reasoners.signin_reasoner import reason_about_signin
 
-
 REASONING_ROUTES = {
     "Infrastructure": reason_about_infrastructure,
     "Network": reason_about_network,
@@ -18,12 +17,9 @@ def reason_over_evidence(evidence):
     findings = []
 
     for item in evidence:
-
         # Microsoft Entra sign-in evidence
         if isinstance(item, SignInEvidence):
-            findings.extend(
-                reason_about_signin(item)
-            )
+            findings.extend(reason_about_signin(item))
             continue
 
         # Existing dictionary-based evidence

@@ -30,7 +30,9 @@ def test_exchange_provider():
         print()
         print("Recent Messages")
 
-        for message in result.messages:
+        messages = result.messages or []
+
+        for message in messages:
             print(
                 "-",
                 message.get("receivedDateTime"),

@@ -16,6 +16,7 @@ def initialise_results_stage(investigation, results):
 
     return results
 
+
 import time
 
 from attack_patterns import detect_attack_patterns
@@ -33,8 +34,6 @@ from models.investigation_case import (
     CaseStatus,
 )
 from operational_decision import determine_operational_decision
-from providers.signin_evidence_provider import SignInEvidenceProvider
-from reasoners.signin_reasoner import reason_about_signin
 from response_playbooks import get_response_playbook
 from threat_engine import correlate_threat_intelligence
 from threat_intel import lookup_ip_reputation
@@ -89,19 +88,10 @@ def normalise_threat_evidence(value) -> list[dict]:
                 normalised.append(
                     {
                         **item,
-                        "category": str(
-                            item.get("category")
-                            or "Threat Intelligence"
-                        ),
+                        "category": str(item.get("category") or "Threat Intelligence"),
                         "finding": str(finding),
-                        "evidence": str(
-                            item.get("evidence")
-                            or finding
-                        ),
-                        "source": str(
-                            item.get("source")
-                            or source
-                        ),
+                        "evidence": str(item.get("evidence") or finding),
+                        "source": str(item.get("source") or source),
                     }
                 )
 
@@ -137,6 +127,7 @@ def normalise_threat_evidence(value) -> list[dict]:
     add_item(value)
 
     return normalised
+
 
 def build_investigation_text(investigation) -> str:
     """
@@ -183,16 +174,12 @@ def build_investigation_text(investigation) -> str:
 
             if isinstance(value, (list, tuple, set)):
                 text_parts.extend(
-                    str(item).strip()
-                    for item in value
-                    if str(item).strip()
+                    str(item).strip() for item in value if str(item).strip()
                 )
 
             elif isinstance(value, dict):
                 text_parts.extend(
-                    f"{key}: {item}"
-                    for key, item in value.items()
-                    if item is not None
+                    f"{key}: {item}" for key, item in value.items() if item is not None
                 )
 
             else:
@@ -212,6 +199,7 @@ def build_investigation_text(investigation) -> str:
         return "\n".join(dict.fromkeys(text_parts))
 
     return str(investigation)
+
 
 STAGE_NAMES = {
     "initialise_results_stage": "Initializing Investigation",
@@ -236,15 +224,11 @@ def ioc_extraction_stage(investigation, results):
     Extract IOCs from structured or unstructured investigation data.
     """
 
-    investigation_text = build_investigation_text(
-        investigation
-    )
+    investigation_text = build_investigation_text(investigation)
 
     results["Investigation Text"] = investigation_text
 
-    ioc_results = extract_iocs(
-        investigation_text
-    )
+    ioc_results = extract_iocs(investigation_text)
 
     results.update(ioc_results)
 
@@ -275,31 +259,27 @@ def identity_extraction_stage(investigation, results):
     investigation_aggregate = results.get("Investigation Aggregate")
 
     if isinstance(investigation_aggregate, Investigation):
-        investigation_aggregate.identity_entities = dict(
-            identity_results or {}
-        )
+        investigation_aggregate.identity_entities = dict(identity_results or {})
 
     return results
+
 
 def identity_enrichment_stage(investigation, results):
     """
     Enrich extracted identity entities with organisational context.
     """
 
-    enriched_identity = enrich_identity(
-        results.get("Identity Entities", {})
-    )
+    enriched_identity = enrich_identity(results.get("Identity Entities", {}))
 
     results["Enriched Identity"] = enriched_identity
 
     investigation_aggregate = results.get("Investigation Aggregate")
 
     if isinstance(investigation_aggregate, Investigation):
-        investigation_aggregate.identity_enrichment = dict(
-            enriched_identity or {}
-        )
+        investigation_aggregate.identity_enrichment = dict(enriched_identity or {})
 
     return results
+
 
 def signin_evidence_stage(investigation, results):
     """
@@ -320,14 +300,13 @@ def signin_evidence_stage(investigation, results):
 
     results["Sign-In Evidence"] = evidence
 
-    investigation_aggregate = results.get(
-        "Investigation Aggregate"
-    )
+    investigation_aggregate = results.get("Investigation Aggregate")
 
     if isinstance(investigation_aggregate, Investigation):
         investigation_aggregate.signin_evidence = evidence
 
     return results
+
 
 def evidence_reasoning_stage(investigation, results):
     """
@@ -337,9 +316,7 @@ def evidence_reasoning_stage(investigation, results):
 
     evidence = []
 
-    evidence.extend(
-        results.get("Sign-In Evidence", [])
-    )
+    evidence.extend(results.get("Sign-In Evidence", []))
 
     existing_evidence = results.get("Evidence", [])
 
@@ -358,47 +335,40 @@ def evidence_reasoning_stage(investigation, results):
         *findings,
     ]
 
-    investigation_aggregate = results.get(
-        "Investigation Aggregate"
-    )
+    investigation_aggregate = results.get("Investigation Aggregate")
 
     if isinstance(investigation_aggregate, Investigation):
         investigation_aggregate.findings = results["Findings"]
 
     return results
 
+
 def business_impact_stage(investigation, results):
     """
     Assess organisational impact using enriched identity context.
     """
 
-    business_impact = assess_business_impact(
-        results["Enriched Identity"]
-    )
+    business_impact = assess_business_impact(results["Enriched Identity"])
 
     results["Business Impact"] = business_impact
 
-    investigation_aggregate = results.get(
-        "Investigation Aggregate"
-    )
+    investigation_aggregate = results.get("Investigation Aggregate")
 
     if isinstance(investigation_aggregate, Investigation):
-        investigation_aggregate.business_impact = (
-            business_impact
-        )
+        investigation_aggregate.business_impact = business_impact
 
     return results
+
 
 def ip_enrichment_stage(investigation, results):
     """
     Enrich extracted IP addresses with structured context.
     """
 
-    results["Enriched IPs"] = enrich_ips(
-        results["IP Addresses"]
-    )
+    results["Enriched IPs"] = enrich_ips(results["IP Addresses"])
 
     return results
+
 
 def threat_intelligence_stage(investigation, results):
     """
@@ -411,8 +381,8 @@ def threat_intelligence_stage(investigation, results):
         threat_result = lookup_ip_reputation(ip)
         results["Threat Intelligence"].append(threat_result)
 
-
     return results
+
 
 def threat_correlation_stage(investigation, results):
     """
@@ -427,24 +397,22 @@ def threat_correlation_stage(investigation, results):
     if not isinstance(threat_results, list):
         threat_results = [threat_results]
 
-    correlation_result = correlate_threat_intelligence(
-        threat_results
-    )
+    correlation_result = correlate_threat_intelligence(threat_results)
 
     results["Threat Correlation"] = correlation_result
 
     return results
+
 
 def contextual_risk_stage(investigation, results):
     """
     Calculate the overall contextual investigation risk.
     """
 
-    results["Contextual Risk"] = assess_contextual_risk(
-        investigation
-    )
+    results["Contextual Risk"] = assess_contextual_risk(investigation)
 
     return results
+
 
 def operational_decision_stage(investigation, results):
     """
@@ -453,20 +421,18 @@ def operational_decision_stage(investigation, results):
     """
 
     results["Operational Decision"] = determine_operational_decision(
-        results["Contextual Risk"],
-        results["Business Impact"]
+        results["Contextual Risk"], results["Business Impact"]
     )
 
     return results
+
 
 def attack_pattern_stage(investigation, results):
     """
     Detect recognised attack patterns from investigation evidence.
     """
 
-    correlation_result = results.get(
-        "Threat Correlation"
-    )
+    correlation_result = results.get("Threat Correlation")
 
     if not isinstance(correlation_result, dict):
         correlation_result = {
@@ -476,9 +442,7 @@ def attack_pattern_stage(investigation, results):
             "reason": "No threat correlation available.",
         }
 
-    investigation_text = build_investigation_text(
-        investigation
-    )
+    investigation_text = build_investigation_text(investigation)
 
     results["Attack Patterns"] = detect_attack_patterns(
         investigation_text,
@@ -490,16 +454,16 @@ def attack_pattern_stage(investigation, results):
 
     return results
 
+
 def response_playbook_stage(investigation, results):
     """
     Generate response playbooks for detected attack patterns.
     """
 
-    results["Response Playbooks"] = get_response_playbook(
-        results["Attack Patterns"]
-    )
+    results["Response Playbooks"] = get_response_playbook(results["Attack Patterns"])
 
     return results
+
 
 def case_creation_stage(investigation, results):
     """
@@ -522,9 +486,7 @@ def case_creation_stage(investigation, results):
         {},
     )
 
-    live_identity_profile = results.get(
-        "Live Identity Profile"
-    )
+    live_identity_profile = results.get("Live Identity Profile")
 
     enriched_identity = results.get(
         "Enriched Identity",
@@ -542,28 +504,18 @@ def case_creation_stage(investigation, results):
             or "ORION Security Investigation"
         )
 
-        alert_id = str(
-            investigation.get("alert_id")
-            or investigation.get("id")
-            or ""
-        )
+        alert_id = str(investigation.get("alert_id") or investigation.get("id") or "")
 
         alert_source = str(
-            investigation.get("source")
-            or investigation.get("alert_source")
-            or "ORION"
+            investigation.get("source") or investigation.get("alert_source") or "ORION"
         )
 
         alert_type = str(
-            investigation.get("alert_type")
-            or investigation.get("category")
-            or ""
+            investigation.get("alert_type") or investigation.get("category") or ""
         )
 
         affected_user = str(
-            investigation.get("user")
-            or investigation.get("affected_user")
-            or ""
+            investigation.get("user") or investigation.get("affected_user") or ""
         )
 
         affected_host = str(
@@ -590,10 +542,7 @@ def case_creation_stage(investigation, results):
     # Prefer the live Microsoft identity where available.
     #
     if live_identity_profile is not None:
-        affected_user = (
-            live_identity_profile.user_principal_name
-            or affected_user
-        )
+        affected_user = live_identity_profile.user_principal_name or affected_user
 
     elif isinstance(enriched_identity, dict):
         affected_user = str(
@@ -656,9 +605,7 @@ def case_creation_stage(investigation, results):
             case.business_impact_score = 0
 
         case.business_impact_level = str(
-            business_impact.get("impact")
-            or business_impact.get("level")
-            or "Unknown"
+            business_impact.get("impact") or business_impact.get("level") or "Unknown"
         )
 
     #
@@ -686,17 +633,13 @@ def case_creation_stage(investigation, results):
     ]
 
     for evidence_source in evidence_sources:
-        for evidence_item in normalise_text_items(
-            evidence_source
-        ):
+        for evidence_item in normalise_text_items(evidence_source):
             case.add_evidence(evidence_item)
 
     #
     # Transfer response recommendations.
     #
-    for action in normalise_text_items(
-        results.get("Response Playbooks")
-    ):
+    for action in normalise_text_items(results.get("Response Playbooks")):
         case.add_recommended_action(action)
 
     #
@@ -705,7 +648,8 @@ def case_creation_stage(investigation, results):
     case.metadata["pipeline_results"] = {
         key: value
         for key, value in results.items()
-        if key not in {
+        if key
+        not in {
             "Investigation Case",
             "Live Identity Profile",
         }
@@ -718,8 +662,7 @@ def case_creation_stage(investigation, results):
         case.add_timeline_event(
             event_type="Identity Enriched",
             description=(
-                "ORION enriched the affected identity using "
-                "live Microsoft Graph data."
+                "ORION enriched the affected identity using live Microsoft Graph data."
             ),
             source="Microsoft Graph",
             entity=(
@@ -727,19 +670,11 @@ def case_creation_stage(investigation, results):
                 or live_identity_profile.object_id
             ),
             metadata={
-                "display_name": (
-                    live_identity_profile.display_name
-                ),
+                "display_name": (live_identity_profile.display_name),
                 "groups": live_identity_profile.groups,
-                "registered_devices": (
-                    live_identity_profile.registered_devices
-                ),
-                "risk_level": (
-                    live_identity_profile.risk_level
-                ),
-                "enrichment_status": (
-                    live_identity_profile.enrichment_status
-                ),
+                "registered_devices": (live_identity_profile.registered_devices),
+                "risk_level": (live_identity_profile.risk_level),
+                "enrichment_status": (live_identity_profile.enrichment_status),
             },
         )
 
@@ -762,14 +697,13 @@ def case_creation_stage(investigation, results):
 
             case.add_evidence(
                 "The affected identity has privileged group "
-                "membership: "
-                + ", ".join(matched_privileged_groups)
-                + "."
+                "membership: " + ", ".join(matched_privileged_groups) + "."
             )
 
     results["Investigation Case"] = case
 
     return results
+
 
 def normalise_text_items(value) -> list[str]:
     """
@@ -796,9 +730,7 @@ def normalise_text_items(value) -> list[str]:
             "playbook",
         ):
             if key in value:
-                text_items.extend(
-                    normalise_text_items(value[key])
-                )
+                text_items.extend(normalise_text_items(value[key]))
 
         if text_items:
             return list(dict.fromkeys(text_items))
@@ -809,13 +741,12 @@ def normalise_text_items(value) -> list[str]:
         text_items = []
 
         for item in value:
-            text_items.extend(
-                normalise_text_items(item)
-            )
+            text_items.extend(normalise_text_items(item))
 
         return list(dict.fromkeys(text_items))
 
     return [str(value)]
+
 
 def map_case_severity(value) -> CaseSeverity:
     """
@@ -838,6 +769,7 @@ def map_case_severity(value) -> CaseSeverity:
         CaseSeverity.INFORMATIONAL,
     )
 
+
 def build_investigation_aggregate(results: dict) -> Investigation:
     """
     Convert the legacy pipeline results dictionary into the
@@ -853,14 +785,13 @@ def build_investigation_aggregate(results: dict) -> Investigation:
     return Investigation(
         narrative=results.get("Narrative"),
         indicators=results.get("IOCs", {}),
-    identity_entities=dict(
-        results.get("Identity Entities", {}) or {}
-    ),
-    identity_enrichment=dict(
-        results.get("Enriched Identity", {}) or {}
-    ),
+        identity_entities=dict(results.get("Identity Entities", {}) or {}),
+        identity_enrichment=dict(results.get("Enriched Identity", {}) or {}),
         identity_profile=identity_profile,
-        signin_evidence=results.get("Sign-In Evidence",[],),
+        signin_evidence=results.get(
+            "Sign-In Evidence",
+            [],
+        ),
         enriched_ips=results.get("Enriched IPs", []),
         threat_intelligence=results.get("Threat Intelligence", []),
         threat_correlation=results.get("Threat Correlation", {}),
@@ -880,8 +811,9 @@ def build_investigation_aggregate(results: dict) -> Investigation:
             "legacy_pipeline": True,
         },
     )
-class OrionPipeline:
 
+
+class OrionPipeline:
     def __init__(self):
         self.stages = []
 
@@ -925,25 +857,16 @@ class OrionPipeline:
         total_stages = len(self.stages)
 
         for index, stage in enumerate(self.stages, start=1):
-
-            stage_name = STAGE_NAMES.get(
-                stage.__name__,
-                stage.__name__
-            )
+            stage_name = STAGE_NAMES.get(stage.__name__, stage.__name__)
 
             start_time = time.perf_counter()
 
-            print(
-                f"[PIPELINE] [{index}/{total_stages}] "
-                f"Starting: {stage_name}"
-            )
+            print(f"[PIPELINE] [{index}/{total_stages}] Starting: {stage_name}")
 
             try:
                 results = stage(investigation, results)
 
-                duration_ms = (
-                    time.perf_counter() - start_time
-                ) * 1000
+                duration_ms = (time.perf_counter() - start_time) * 1000
 
                 print(
                     f"[PIPELINE] [{index}/{total_stages}] "
@@ -954,10 +877,7 @@ class OrionPipeline:
                 successful += 1
 
             except Exception as error:
-
-                duration_ms = (
-                    time.perf_counter() - start_time
-                ) * 1000
+                duration_ms = (time.perf_counter() - start_time) * 1000
 
                 print(
                     f"[PIPELINE] [{index}/{total_stages}] "
