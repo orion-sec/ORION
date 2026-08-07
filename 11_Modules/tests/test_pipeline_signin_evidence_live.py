@@ -1,6 +1,10 @@
 from connectors.azure_monitor import AzureMonitorClient
 from connectors.config import load_graph_config
-from pipeline import OrionPipeline, signin_evidence_stage
+from pipeline import (
+    OrionPipeline,
+    evidence_reasoning_stage,
+    signin_evidence_stage,
+)
 from providers.signin_evidence_provider import SignInEvidenceProvider
 
 
@@ -34,6 +38,7 @@ def test_pipeline_signin_evidence_live() -> None:
 
     # Run only the new authentication-evidence stage for this test.
     pipeline.add_stage(signin_evidence_stage)
+    pipeline.add_stage(evidence_reasoning_stage)
 
     results = {
         "Sign-In Evidence Provider": provider,
@@ -57,6 +62,15 @@ def test_pipeline_signin_evidence_live() -> None:
         f"{len(aggregate.signin_evidence)}"
     )
 
+    print()
+    print(f"Findings attached: {len(aggregate.findings)}")
+
+    for finding in aggregate.findings:
+        print(
+            f"- [{finding.category}] "
+            f"{finding.finding}"
+        )
+
     for event in aggregate.signin_evidence:
         print("-" * 70)
         print(f"User        : {event.user_principal_name}")
@@ -66,6 +80,7 @@ def test_pipeline_signin_evidence_live() -> None:
         print(f"User Agent  : {event.user_agent}")
 
     assert aggregate.signin_evidence
+    assert aggregate.findings
 
     print()
     print("PIPELINE LIVE SIGN-IN EVIDENCE TEST PASSED")

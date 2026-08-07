@@ -22,6 +22,7 @@ from attack_patterns import detect_attack_patterns
 from business_impact import assess_business_impact
 from context_risk import assess_contextual_risk
 from enrich import enrich_ips
+from evidence_reasoning import reason_over_evidence
 from extract import extract_iocs
 from factories.case_factory import create_investigation_case
 from identity_enrichment import enrich_identity
@@ -33,6 +34,7 @@ from models.investigation_case import (
 )
 from operational_decision import determine_operational_decision
 from providers.signin_evidence_provider import SignInEvidenceProvider
+from reasoners.signin_reasoner import reason_about_signin
 from response_playbooks import get_response_playbook
 from threat_engine import correlate_threat_intelligence
 from threat_intel import lookup_ip_reputation
@@ -225,6 +227,7 @@ STAGE_NAMES = {
     "attack_pattern_stage": "Detecting Attack Patterns",
     "response_playbook_stage": "Generating Response Playbooks",
     "case_creation_stage": "Creating Investigation Case",
+    "evidence_reasoning_stage": "Reasoning Over Security Evidence",
 }
 
 
@@ -323,6 +326,44 @@ def signin_evidence_stage(investigation, results):
 
     if isinstance(investigation_aggregate, Investigation):
         investigation_aggregate.signin_evidence = evidence
+
+    return results
+
+def evidence_reasoning_stage(investigation, results):
+    """
+    Reason over collected evidence and attach structured findings
+    to the ORION investigation.
+    """
+
+    evidence = []
+
+    evidence.extend(
+        results.get("Sign-In Evidence", [])
+    )
+
+    existing_evidence = results.get("Evidence", [])
+
+    if isinstance(existing_evidence, list):
+        evidence.extend(existing_evidence)
+
+    findings = reason_over_evidence(evidence)
+
+    existing_findings = results.get("Findings", [])
+
+    if not isinstance(existing_findings, list):
+        existing_findings = []
+
+    results["Findings"] = [
+        *existing_findings,
+        *findings,
+    ]
+
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(investigation_aggregate, Investigation):
+        investigation_aggregate.findings = results["Findings"]
 
     return results
 
@@ -857,6 +898,7 @@ class OrionPipeline:
         self.add_stage(identity_extraction_stage)
         self.add_stage(identity_enrichment_stage)
         self.add_stage(signin_evidence_stage)
+        self.add_stage(evidence_reasoning_stage)
         self.add_stage(business_impact_stage)
         self.add_stage(ip_enrichment_stage)
         self.add_stage(threat_intelligence_stage)
