@@ -32,6 +32,7 @@ from models.investigation_case import (
     CaseStatus,
 )
 from operational_decision import determine_operational_decision
+from providers.signin_evidence_provider import SignInEvidenceProvider
 from response_playbooks import get_response_playbook
 from threat_engine import correlate_threat_intelligence
 from threat_intel import lookup_ip_reputation
@@ -215,6 +216,7 @@ STAGE_NAMES = {
     "ioc_extraction_stage": "Extracting Indicators of Compromise",
     "identity_extraction_stage": "Extracting Identity Entities",
     "identity_enrichment_stage": "Enriching Identity Context",
+    "signin_evidence_stage": "Collecting Entra Sign-In Evidence",
     "business_impact_stage": "Assessing Business Impact",
     "ip_enrichment_stage": "Enriching IP Addresses",
     "threat_intelligence_stage": "Querying Threat Intelligence",
@@ -293,6 +295,34 @@ def identity_enrichment_stage(investigation, results):
         investigation_aggregate.identity_enrichment = dict(
             enriched_identity or {}
         )
+
+    return results
+
+def signin_evidence_stage(investigation, results):
+    """
+    Collect Microsoft Entra sign-in telemetry and attach the
+    resulting SignInEvidence objects to the ORION investigation.
+    """
+
+    provider = results.get("Sign-In Evidence Provider")
+
+    if provider is None:
+        results["Sign-In Evidence"] = []
+        return results
+
+    evidence = provider.collect(
+        timespan="P1D",
+        limit=50,
+    )
+
+    results["Sign-In Evidence"] = evidence
+
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(investigation_aggregate, Investigation):
+        investigation_aggregate.signin_evidence = evidence
 
     return results
 
@@ -789,6 +819,7 @@ def build_investigation_aggregate(results: dict) -> Investigation:
         results.get("Enriched Identity", {}) or {}
     ),
         identity_profile=identity_profile,
+        signin_evidence=results.get("Sign-In Evidence",[],),
         enriched_ips=results.get("Enriched IPs", []),
         threat_intelligence=results.get("Threat Intelligence", []),
         threat_correlation=results.get("Threat Correlation", {}),
@@ -825,6 +856,7 @@ class OrionPipeline:
         self.add_stage(ioc_extraction_stage)
         self.add_stage(identity_extraction_stage)
         self.add_stage(identity_enrichment_stage)
+        self.add_stage(signin_evidence_stage)
         self.add_stage(business_impact_stage)
         self.add_stage(ip_enrichment_stage)
         self.add_stage(threat_intelligence_stage)
