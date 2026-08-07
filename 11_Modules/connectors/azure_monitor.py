@@ -293,3 +293,41 @@ class AzureMonitorClient:
             )
 
         return payload
+
+    def get_signin_evidence(
+        self,
+        workspace_id: str,
+        timespan: str = "P1D",
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """
+        Retrieves investigation-grade Microsoft Entra sign-in evidence.
+        """
+
+        query = f"""
+        SigninLogs
+        | order by TimeGenerated desc
+        | project
+            TimeGenerated,
+            UserPrincipalName,
+            UserId,
+            IPAddress,
+            AutonomousSystemNumber,
+            AppDisplayName,
+            ResultType,
+            ResultDescription,
+            ClientAppUsed,
+            UserAgent,
+            ConditionalAccessStatus,
+            RiskLevelDuringSignIn,
+            Location,
+            DeviceDetail,
+            CorrelationId
+        | take {limit}
+        """
+
+        return self.run_kql(
+            workspace_id=workspace_id,
+            query=query,
+            timespan=timespan,
+        )
