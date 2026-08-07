@@ -69,6 +69,89 @@ class AzureMonitorClient:
 
         return subscriptions
 
+    def get_log_analytics_workspace_id(
+        self,
+        subscription_id: str,
+        resource_group: str,
+        workspace_name: str,
+    ) -> str:
+        """
+        Retrieves the Log Analytics workspace customer ID from Azure.
+        """
+
+        cleaned_subscription_id = subscription_id.strip()
+        cleaned_resource_group = resource_group.strip()
+        cleaned_workspace_name = workspace_name.strip()
+
+        if not cleaned_subscription_id:
+            raise ValueError("Subscription ID cannot be empty.")
+
+        if not cleaned_resource_group:
+            raise ValueError("Resource group cannot be empty.")
+
+        if not cleaned_workspace_name:
+            raise ValueError("Workspace name cannot be empty.")
+
+        token = self.auth.acquire_token(
+            scope="https://management.azure.com/.default"
+        )
+
+        url = (
+            "https://management.azure.com/"
+            f"subscriptions/{cleaned_subscription_id}/"
+            f"resourceGroups/{cleaned_resource_group}/"
+            "providers/Microsoft.OperationalInsights/"
+            f"workspaces/{cleaned_workspace_name}"
+        )
+
+        try:
+            response = requests.get(
+                url=url,
+                headers={
+                    **token.authorization_header,
+                    "Accept": "application/json",
+                },
+                params={
+                    "api-version": "2023-09-01",
+                },
+                timeout=30,
+            )
+
+        except requests.RequestException as error:
+            raise AzureMonitorError(
+                f"Log Analytics workspace request failed: {error}"
+            ) from error
+
+        if not response.ok:
+            raise AzureMonitorError(
+                "Azure rejected the workspace request. "
+                f"HTTP {response.status_code}. "
+                f"Response: {response.text}"
+            )
+
+        payload = response.json()
+
+        if not isinstance(payload, dict):
+            raise AzureMonitorError(
+                "Azure returned an invalid workspace response."
+            )
+
+        properties = payload.get("properties", {})
+
+        if not isinstance(properties, dict):
+            raise AzureMonitorError(
+                "Azure returned invalid workspace properties."
+            )
+
+        workspace_id = properties.get("customerId")
+
+        if not isinstance(workspace_id, str) or not workspace_id.strip():
+            raise AzureMonitorError(
+                "Azure did not return a Log Analytics workspace ID."
+            )
+
+        return workspace_id.strip()
+    
     def list_sentinel_incidents(
         self,
         subscription_id: str,
