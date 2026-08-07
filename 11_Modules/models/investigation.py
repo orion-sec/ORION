@@ -7,6 +7,7 @@ from .identity_profile import IdentityProfile
 from .incident_narrative import IncidentNarrative
 from .investigation_case import InvestigationCase
 from .investigation_outcome import InvestigationOutcome
+from .signin_evidence import SignInEvidence
 
 
 @dataclass
@@ -27,6 +28,9 @@ class Investigation(BaseModel):
     identity_entities: dict[str, Any] = field(default_factory=dict)
     identity_enrichment: dict[str, Any] = field(default_factory=dict)
     identity_profile: IdentityProfile | None = None
+
+    # Authentication Evidence
+    signin_evidence: list[SignInEvidence] = field(default_factory=list)
 
     # Enrichment
     enriched_ips: list = field(default_factory=list)
