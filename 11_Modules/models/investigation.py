@@ -8,6 +8,7 @@ from .incident_narrative import IncidentNarrative
 from .investigation_case import InvestigationCase
 from .investigation_outcome import InvestigationOutcome
 from .signin_evidence import SignInEvidence
+from .signin_evidence import SignInEvidence
 
 
 @dataclass
