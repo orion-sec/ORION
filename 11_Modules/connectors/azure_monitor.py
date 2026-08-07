@@ -14,7 +14,8 @@ class AzureMonitorError(RuntimeError):
 
 class AzureMonitorClient:
     """
-    Client for Azure Management and Log Analytics APIs.
+    Client for Azure Management, Microsoft Sentinel,
+    and Log Analytics APIs.
     """
 
     def __init__(
@@ -67,6 +68,84 @@ class AzureMonitorClient:
             )
 
         return subscriptions
+
+    def list_sentinel_incidents(
+        self,
+        subscription_id: str,
+        resource_group: str,
+        workspace_name: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Lists Microsoft Sentinel incidents from a Log Analytics workspace.
+        """
+
+        cleaned_subscription_id = subscription_id.strip()
+        cleaned_resource_group = resource_group.strip()
+        cleaned_workspace_name = workspace_name.strip()
+
+        if not cleaned_subscription_id:
+            raise ValueError("Subscription ID cannot be empty.")
+
+        if not cleaned_resource_group:
+            raise ValueError("Resource group cannot be empty.")
+
+        if not cleaned_workspace_name:
+            raise ValueError("Workspace name cannot be empty.")
+
+        token = self.auth.acquire_token(
+            scope="https://management.azure.com/.default"
+        )
+
+        url = (
+            "https://management.azure.com/"
+            f"subscriptions/{cleaned_subscription_id}/"
+            f"resourceGroups/{cleaned_resource_group}/"
+            "providers/Microsoft.OperationalInsights/"
+            f"workspaces/{cleaned_workspace_name}/"
+            "providers/Microsoft.SecurityInsights/incidents"
+        )
+
+        try:
+            response = requests.get(
+                url=url,
+                headers={
+                    **token.authorization_header,
+                    "Accept": "application/json",
+                },
+                params={
+                    "api-version": "2024-03-01",
+                },
+                timeout=30,
+            )
+
+        except requests.RequestException as error:
+            raise AzureMonitorError(
+                f"Microsoft Sentinel request failed: {error}"
+            ) from error
+
+        if not response.ok:
+            raise AzureMonitorError(
+                "Microsoft Sentinel rejected the request. "
+                f"HTTP {response.status_code}. "
+                f"Response: {response.text}"
+            )
+
+        payload = response.json()
+
+        if not isinstance(payload, dict):
+            raise AzureMonitorError(
+                "Microsoft Sentinel returned an invalid response."
+            )
+
+        incidents = payload.get("value", [])
+
+        if not isinstance(incidents, list):
+            raise AzureMonitorError(
+                "Microsoft Sentinel returned an invalid "
+                "incident collection."
+            )
+
+        return incidents
 
     def run_kql(
         self,
