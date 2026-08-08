@@ -2,9 +2,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import requests
-from msal import ConfidentialClientApplication
-
 from connectors.config import GraphConfig
+from msal import ConfidentialClientApplication
 
 
 @dataclass
