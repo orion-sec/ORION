@@ -7,6 +7,7 @@ from .identity_profile import IdentityProfile
 from .incident_narrative import IncidentNarrative
 from .investigation_case import InvestigationCase
 from .investigation_outcome import InvestigationOutcome
+from .security_incident import SecurityIncident
 from .signin_evidence import SignInEvidence
 
 
@@ -20,6 +21,11 @@ class Investigation(BaseModel):
 
     # Alert / Narrative
     narrative: IncidentNarrative | None = None
+
+    # Security Incidents
+    security_incidents: list[SecurityIncident] = field(
+        default_factory=list
+    )
 
     # Indicators
     indicators: dict[str, Any] = field(default_factory=dict)

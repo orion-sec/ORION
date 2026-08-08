@@ -26,6 +26,7 @@ from enrich import enrich_ips
 from evidence_reasoning import reason_over_evidence
 from extract import extract_iocs
 from factories.case_factory import create_investigation_case
+from factories.sentinel_incident_factory import create_sentinel_incident
 from identity_enrichment import enrich_identity
 from identity_entities import extract_identity_entities
 from models.investigation import Investigation
@@ -218,6 +219,48 @@ STAGE_NAMES = {
     "evidence_reasoning_stage": "Reasoning Over Security Evidence",
 }
 
+
+def security_incident_stage(investigation, results):
+    """
+    Normalise external security incidents into ORION's
+    provider-neutral SecurityIncident model.
+    """
+
+    raw_incidents = results.get("Raw Security Incidents", [])
+
+    if not raw_incidents:
+        results["Security Incidents"] = []
+        return results
+
+    security_incidents = []
+
+    for raw_incident in raw_incidents:
+        source_provider = str(
+            raw_incident.get("source_provider", "")
+        ).strip().lower()
+
+        raw_payload = raw_incident.get("raw")
+
+        if not isinstance(raw_payload, dict):
+            continue
+
+        if source_provider == "microsoft sentinel":
+            security_incidents.append(
+                create_sentinel_incident(raw_payload)
+            )
+
+    results["Security Incidents"] = security_incidents
+
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(investigation_aggregate, Investigation):
+        investigation_aggregate.security_incidents = list(
+            security_incidents
+        )
+
+    return results
 
 def ioc_extraction_stage(investigation, results):
     """
@@ -784,6 +827,7 @@ def build_investigation_aggregate(results: dict) -> Investigation:
 
     return Investigation(
         narrative=results.get("Narrative"),
+        security_incidents=results.get("Security Incidents", [],),
         indicators=results.get("IOCs", {}),
         identity_entities=dict(results.get("Identity Entities", {}) or {}),
         identity_enrichment=dict(results.get("Enriched Identity", {}) or {}),
@@ -826,6 +870,7 @@ class OrionPipeline:
         """
 
         self.add_stage(initialise_results_stage)
+        self.add_stage(security_incident_stage)
         self.add_stage(ioc_extraction_stage)
         self.add_stage(identity_extraction_stage)
         self.add_stage(identity_enrichment_stage)

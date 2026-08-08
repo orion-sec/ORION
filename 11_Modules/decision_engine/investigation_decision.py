@@ -34,7 +34,7 @@ def build_decision(
     assessment,
     context,
     default_actions,
-    default_questions=None
+    default_questions=None,
 ):
     """
     Builds a standardized and explainable InvestigationOutcome.
@@ -42,28 +42,28 @@ def build_decision(
 
     supporting_evidence = _get_list(
         context,
-        "supporting_evidence"
+        "supporting_evidence",
     )
 
     contradicting_evidence = _get_list(
         context,
-        "contradicting_evidence"
+        "contradicting_evidence",
     )
 
     unresolved_questions = _get_list(
         context,
-        "unresolved_questions"
+        "unresolved_questions",
     )
 
     recommended_actions = _get_list(
         context,
-        "recommended_actions"
+        "recommended_actions",
     )
 
     explainability = [
         leading_hypothesis.explanation,
         *assessment.explanations,
-        *supporting_evidence
+        *supporting_evidence,
     ]
 
     return create_outcome(
@@ -80,7 +80,7 @@ def build_decision(
         recommended_actions=(
             recommended_actions
             or default_actions
-        )
+        ),
     )
 
 def determine_outcome(hypotheses, signals=None, decision_context=None):
@@ -123,13 +123,16 @@ def determine_outcome(hypotheses, signals=None, decision_context=None):
                     "Additional evidence is required before a disposition can be reached."
                 ]
             ),
+
             recommended_actions=(
                 recommended_actions
                 or [
-                    "Collect endpoint, identity, network, business-context, "
-                    "and threat-intelligence evidence."
+                    (
+                        "Collect endpoint, identity, network, business-context, "
+                        "and threat-intelligence evidence."
+                    )
                 ]
-            )
+            ),
         )
 
     leading_hypothesis = hypotheses[0]
@@ -148,12 +151,6 @@ def determine_outcome(hypotheses, signals=None, decision_context=None):
 
     assessment = calculate_confidence(decision_signals)
     confidence = assessment.final_score
-
-    explainability = [
-        leading_hypothesis.explanation,
-        *assessment.explanations,
-        *supporting_evidence
-    ]
 
     #
     # 1. Confirmed malicious or unauthorised activity
