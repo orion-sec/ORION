@@ -1,10 +1,12 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from typing import Any
 
 import requests
 from msal import ConfidentialClientApplication
 
+from connectors.azure_monitor import AzureMonitorClient
 from connectors.config import GraphConfig
+from providers.sentinel_ingestion import collect_sentinel_incidents
 
 
 @dataclass
@@ -35,6 +37,8 @@ class SentinelProvider:
         self.subscription_id = subscription_id
         self.resource_group = resource_group
         self.workspace_name = workspace_name
+
+        self.azure_monitor = AzureMonitorClient(config)
 
         self.application = ConfidentialClientApplication(
             client_id=config.client_id,
@@ -138,3 +142,18 @@ class SentinelProvider:
                 status="Unavailable",
                 error=str(error),
             )
+
+    def collect_incidents(
+        self,
+    ) -> list[dict[str, Any]]:
+        """
+        Collect investigation-ready Microsoft Sentinel incidents
+        with their associated entities and alerts.
+        """
+
+        return collect_sentinel_incidents(
+            client=self.azure_monitor,
+            subscription_id=self.subscription_id,
+            resource_group=self.resource_group,
+            workspace_name=self.workspace_name,
+        )

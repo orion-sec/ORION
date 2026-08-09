@@ -1,127 +1,262 @@
-def determine_operational_decision(contextual_risk, business_impact):
+﻿def determine_operational_decision(
+    contextual_risk,
+    business_impact,
+    investigation_outcome=None,
+    security_incidents=None,
+):
     """
-    Produce a deterministic operational decision using contextual risk
-    and business impact.
+    Produce a deterministic and auditable operational decision.
 
-    This layer is intentionally rule-based so that decisions remain
-    transparent, predictable and auditable.
+    Cognitive investigation outcome takes precedence over simple
+    contextual-risk scoring.
+
+    Auto-close is never permitted unless ORION has reached an
+    explicit benign / low-fidelity disposition.
     """
 
-    risk_severity = str(
-        contextual_risk.get("severity", "Unknown")
-    ).lower()
+    contextual_risk = (
+        contextual_risk
+        if isinstance(contextual_risk, dict)
+        else {}
+    )
 
-    impact_level = str(
-        business_impact.get("impact", "Unknown")
-    ).lower()
+    business_impact = (
+        business_impact
+        if isinstance(business_impact, dict)
+        else {}
+    )
+
+    if not isinstance(security_incidents, list):
+        security_incidents = []
+
+    #
+    # Determine highest source-alert severity.
+    #
+    severity_rank = {
+        "informational": 0,
+        "low": 1,
+        "medium": 2,
+        "high": 3,
+        "critical": 4,
+    }
+
+    highest_alert_severity = "unknown"
+    highest_rank = -1
+
+    for incident in security_incidents:
+        severity = str(
+            getattr(incident, "severity", "")
+        ).strip().lower()
+
+        rank = severity_rank.get(
+            severity,
+            -1,
+        )
+
+        if rank > highest_rank:
+            highest_rank = rank
+            highest_alert_severity = severity
+
+    #
+    # Resolve cognitive disposition.
+    #
+    disposition = ""
+
+    if investigation_outcome is not None:
+        raw_disposition = getattr(
+            investigation_outcome,
+            "disposition",
+            "",
+        )
+
+        disposition = str(
+            getattr(
+                raw_disposition,
+                "value",
+                raw_disposition,
+            )
+        ).strip().lower()
+
+    cognitive_confidence = 0
+
+    if investigation_outcome is not None:
+        raw_confidence = getattr(
+            investigation_outcome,
+            "confidence",
+            0,
+        )
+
+        try:
+            cognitive_confidence = int(
+                raw_confidence
+            )
+        except (TypeError, ValueError):
+            cognitive_confidence = 0
 
     reasons = []
+    actions = []
 
-    if risk_severity == "critical" and impact_level in {"critical", "high"}:
-        decision = "Immediate Escalation and Containment"
-        priority = "P1"
-        automation_readiness = "Approval Required"
+    #
+    # ============================================================
+    # GATE 1
+    # HUMAN REVIEW / INSUFFICIENT EVIDENCE
+    # ============================================================
+    #
+    # This always blocks automatic closure.
+    #
+    if (
+        "human review" in disposition
+        or "insufficient" in disposition
+        or "undetermined" in disposition
+    ):
+        decision = "Escalate for Analyst Review"
+
+        if highest_alert_severity in {
+            "critical",
+            "high",
+        }:
+            priority = "P2"
+        else:
+            priority = "P3"
+
+        automation_readiness = "Auto-Close Blocked"
+
         actions = [
-            "Escalate immediately to Incident Response.",
-            "Contain the affected identity or asset.",
-            "Notify relevant business and security stakeholders.",
-            "Begin major-incident assessment.",
+            "Preserve all investigation evidence.",
+            "Escalate the investigation with ORION findings and hypotheses.",
+            "Resolve outstanding investigation questions.",
+            "Do not close automatically.",
         ]
+
         reasons.append(
-            "Critical security risk is combined with high or critical business impact."
+            "ORION has not reached a deterministic benign "
+            "or malicious disposition."
         )
 
-    elif risk_severity == "critical":
-        decision = "Immediate Security Escalation"
-        priority = "P1"
-        automation_readiness = "Approval Required"
-        actions = [
-            "Escalate immediately to Incident Response.",
-            "Perform urgent containment.",
-            "Reset credentials and revoke active sessions where applicable.",
-            "Continue business-impact validation.",
-        ]
-        reasons.append(
-            "The investigation has critical security risk even though current business impact is lower."
+    #
+    # ============================================================
+    # GATE 2
+    # MALICIOUS / COMPROMISE
+    # ============================================================
+    #
+    elif (
+        "malicious" in disposition
+        or "compromise" in disposition
+        or "true positive" in disposition
+    ):
+        if highest_alert_severity == "critical":
+            decision = (
+                "Immediate Escalation and Containment"
+            )
+            priority = "P1"
+
+        elif highest_alert_severity == "high":
+            decision = (
+                "Escalate and Prepare Containment"
+            )
+            priority = "P1"
+
+        else:
+            decision = (
+                "Escalate for Security Response"
+            )
+            priority = "P2"
+
+        automation_readiness = (
+            "Remediation Approval Required"
         )
 
-    elif risk_severity == "high" and impact_level in {"critical", "high"}:
-        decision = "Priority Escalation"
-        priority = "P1"
-        automation_readiness = "Approval Required"
         actions = [
-            "Escalate for priority investigation.",
-            "Notify relevant stakeholders.",
-            "Prepare containment actions.",
-            "Increase monitoring of the affected identity or asset.",
+            "Escalate with the complete ORION investigation package.",
+            "Prepare relevant containment actions.",
+            "Request senior analyst approval for remediation.",
+            "Execute approved remediation through the appropriate provider.",
         ]
+
         reasons.append(
-            "High security risk affects a high-impact identity."
+            "ORION determined that the available evidence "
+            "supports malicious or compromised activity."
         )
 
-    elif risk_severity == "high":
-        decision = "Escalate for Investigation"
-        priority = "P2"
-        automation_readiness = "Analyst Review Required"
-        actions = [
-            "Escalate to the appropriate investigation tier.",
-            "Validate the available evidence.",
-            "Apply containment if compromise is confirmed.",
-        ]
-        reasons.append(
-            "High security risk requires investigation and possible containment."
-        )
+    #
+    # ============================================================
+    # GATE 3
+    # BENIGN / FALSE POSITIVE / LOW FIDELITY
+    # ============================================================
+    #
+    elif (
+        "benign" in disposition
+        or "false positive" in disposition
+        or "low fidelity" in disposition
+    ):
+        if cognitive_confidence >= 80:
+            decision = "Auto-Close"
+            priority = "P4"
+            automation_readiness = (
+                "Auto-Close Approved"
+            )
 
-    elif risk_severity == "medium" and impact_level in {"critical", "high"}:
-        decision = "Priority Investigation"
-        priority = "P2"
-        automation_readiness = "Analyst Review Required"
-        actions = [
-            "Prioritise investigation because of the affected identity's business importance.",
-            "Notify the relevant manager or system owner where appropriate.",
-            "Increase monitoring while evidence is validated.",
-        ]
-        reasons.append(
-            "Moderate security risk affects a high-impact identity."
-        )
+            actions = [
+                "Record ORION's benign determination.",
+                "Attach supporting evidence to the alert.",
+                "Close the alert as benign or false positive.",
+                "Retain investigation telemetry for future correlation.",
+            ]
 
-    elif risk_severity == "medium":
-        decision = "Standard Investigation"
-        priority = "P2"
-        automation_readiness = "Analyst Review Required"
-        actions = [
-            "Continue standard investigation.",
-            "Validate suspicious evidence.",
-            "Escalate if additional malicious activity is identified.",
-        ]
-        reasons.append(
-            "Moderate security risk requires further investigation."
-        )
+            reasons.append(
+                "ORION reached a benign disposition with "
+                "sufficient confidence for automated closure."
+            )
 
-    elif risk_severity == "low" and impact_level in {"critical", "high"}:
-        decision = "Monitor and Validate"
-        priority = "P3"
-        automation_readiness = "Manual Review"
-        actions = [
-            "Validate the activity before closure.",
-            "Monitor the high-impact identity for related activity.",
-            "Document the evidence and decision.",
-        ]
-        reasons.append(
-            "Low technical risk affects an identity with significant business importance."
-        )
+        else:
+            decision = "Validate Before Closure"
+            priority = "P3"
+            automation_readiness = (
+                "Analyst Validation Required"
+            )
 
+            actions = [
+                "Review the evidence supporting the benign determination.",
+                "Confirm no related suspicious activity exists.",
+                "Close only after validation.",
+            ]
+
+            reasons.append(
+                "ORION identified likely benign activity, "
+                "but confidence is below the auto-close threshold."
+            )
+
+    #
+    # ============================================================
+    # GATE 4
+    # SAFETY FALLBACK
+    # ============================================================
+    #
     else:
-        decision = "Close or Monitor"
-        priority = "P3"
-        automation_readiness = "Potentially Automatable"
+        decision = "Continue Investigation"
+
+        if highest_alert_severity in {
+            "critical",
+            "high",
+        }:
+            priority = "P2"
+        else:
+            priority = "P3"
+
+        automation_readiness = (
+            "Automation Blocked"
+        )
+
         actions = [
-            "Confirm that no additional suspicious evidence exists.",
-            "Document the investigation outcome.",
-            "Close or continue routine monitoring.",
+            "Continue evidence collection.",
+            "Search for related activity across the environment.",
+            "Resolve outstanding investigation questions.",
+            "Do not automatically close or remediate.",
         ]
+
         reasons.append(
-            "Both contextual risk and business impact are currently low."
+            "No trusted final cognitive disposition "
+            "is currently available."
         )
 
     return {
@@ -131,7 +266,20 @@ def determine_operational_decision(contextual_risk, business_impact):
         "actions": actions,
         "reasons": reasons,
         "inputs": {
-            "contextual_risk": contextual_risk.get("severity", "Unknown"),
-            "business_impact": business_impact.get("impact", "Unknown"),
+            "contextual_risk": (
+                contextual_risk.get(
+                    "severity",
+                    "Unknown",
+                )
+            ),
+            "business_impact": (
+                business_impact.get(
+                    "impact",
+                    "Unknown",
+                )
+            ),
+            "alert_severity": highest_alert_severity,
+            "cognitive_disposition": disposition,
+            "cognitive_confidence": cognitive_confidence,
         },
     }

@@ -1,4 +1,4 @@
-"""
+﻿"""
 import time
 ORION Processing Pipeline
 
@@ -21,6 +21,7 @@ import time
 
 from attack_patterns import detect_attack_patterns
 from business_impact import assess_business_impact
+from cognitive.cognitive_pipeline import execute as execute_cognitive_pipeline
 from context_risk import assess_contextual_risk
 from enrich import enrich_ips
 from evidence_reasoning import reason_over_evidence
@@ -217,6 +218,7 @@ STAGE_NAMES = {
     "response_playbook_stage": "Generating Response Playbooks",
     "case_creation_stage": "Creating Investigation Case",
     "evidence_reasoning_stage": "Reasoning Over Security Evidence",
+    "cognitive_reasoning_stage": "Executing Cognitive Investigation",
 }
 
 
@@ -245,8 +247,21 @@ def security_incident_stage(investigation, results):
             continue
 
         if source_provider == "microsoft sentinel":
+            entities = raw_incident.get("entities", [])
+            alerts = raw_incident.get("alerts", [])
+
+            if not isinstance(entities, list):
+                entities = []
+
+            if not isinstance(alerts, list):
+                alerts = []
+
             security_incidents.append(
-                create_sentinel_incident(raw_payload)
+                create_sentinel_incident(
+                    raw_incident=raw_payload,
+                    entities=entities,
+                    alerts=alerts,
+                )
             )
 
     results["Security Incidents"] = security_incidents
@@ -386,6 +401,372 @@ def evidence_reasoning_stage(investigation, results):
     return results
 
 
+def cognitive_reasoning_stage(investigation, results):
+    """
+    Execute ORION's cognitive reasoning and investigation
+    decision engine over the evidence collected by the pipeline.
+    """
+
+    evidence = []
+
+    #
+    # Convert normalised security incidents into
+    # investigation-specific cognitive evidence.
+    #
+    security_incidents = results.get(
+        "Security Incidents",
+        [],
+    )
+
+    if isinstance(security_incidents, list):
+        for incident in security_incidents:
+            title_lower = incident.title.lower()
+
+            #
+            # Classify incident-level evidence.
+            #
+            incident_category = "Infrastructure"
+
+            if "malware" in title_lower:
+                incident_category = "Malware"
+
+            elif (
+                "powershell" in title_lower
+                or "process" in title_lower
+                or "execution" in title_lower
+                or "T1059" in incident.techniques
+            ):
+                incident_category = "Process"
+
+            elif (
+                "sign-in" in title_lower
+                or "signin" in title_lower
+                or "identity" in title_lower
+                or "account" in title_lower
+                or "T1078" in incident.techniques
+            ):
+                incident_category = "Identity"
+
+            evidence.append(
+                {
+                    "category": incident_category,
+                    "finding": (
+                        f"Security incident detected: "
+                        f"{incident.title}"
+                    ),
+                    "evidence": (
+                        f"Severity={incident.severity}; "
+                        f"Status={incident.status}; "
+                        f"Tactics={incident.tactics}; "
+                        f"Techniques={incident.techniques}; "
+                        f"Entities={len(incident.entities)}; "
+                        f"Alerts={len(incident.alerts)}"
+                    ),
+                    "source": incident.source_product,
+                    "incident_id": incident.incident_id,
+                }
+            )
+
+            #
+            # Convert Sentinel entities into evidence categories.
+            #
+            for entity in incident.entities:
+                if not isinstance(entity, dict):
+                    continue
+
+                kind = str(
+                    entity.get(
+                        "kind",
+                        "Unknown",
+                    )
+                )
+
+                properties = entity.get(
+                    "properties",
+                    {},
+                )
+
+                kind_lower = kind.lower()
+
+                entity_category = "Infrastructure"
+
+                if kind_lower in {
+                    "host",
+                    "device",
+                }:
+                    entity_category = "Endpoint"
+
+                elif kind_lower in {
+                    "file",
+                    "filehash",
+                }:
+                    entity_category = "File"
+
+                elif kind_lower in {
+                    "account",
+                    "user",
+                }:
+                    entity_category = "Identity"
+
+                elif kind_lower in {
+                    "process",
+                }:
+                    entity_category = "Process"
+
+                elif kind_lower in {
+                    "ip",
+                    "ipaddress",
+                }:
+                    entity_category = "Network"
+
+                evidence.append(
+                    {
+                        "category": entity_category,
+                        "finding": (
+                            f"Incident entity identified: {kind}"
+                        ),
+                        "evidence": str(properties),
+                        "source": incident.source_product,
+                        "incident_id": incident.incident_id,
+                    }
+                )
+
+            #
+            # Convert associated Sentinel alerts into evidence.
+            #
+            for alert in incident.alerts:
+                if not isinstance(alert, dict):
+                    continue
+
+                alert_properties = alert.get(
+                    "properties",
+                    {},
+                )
+
+                if not isinstance(alert_properties, dict):
+                    alert_properties = {}
+
+                alert_name = str(
+                    alert_properties.get(
+                        "alertDisplayName",
+                        "",
+                    )
+                )
+
+                alert_description = str(
+                    alert_properties.get(
+                        "description",
+                        "",
+                    )
+                )
+
+                alert_type = str(
+                    alert_properties.get(
+                        "alertType",
+                        "",
+                    )
+                )
+
+                alert_tactics = alert_properties.get(
+                    "tactics",
+                    [],
+                )
+
+                if not isinstance(alert_tactics, list):
+                    alert_tactics = []
+
+                additional_data = alert_properties.get(
+                    "additionalData",
+                    {},
+                )
+
+                if not isinstance(additional_data, dict):
+                    additional_data = {}
+
+                mitre_techniques = str(
+                    additional_data.get(
+                        "MitreTechniques",
+                        "",
+                    )
+                )
+
+                classification_text = " ".join(
+                    [
+                        alert_name,
+                        alert_description,
+                        alert_type,
+                        " ".join(
+                            str(item)
+                            for item in alert_tactics
+                        ),
+                        mitre_techniques,
+                    ]
+                ).lower()
+
+                #
+                # Preserve the incident classification unless
+                # the alert contains stronger explicit evidence.
+                #
+                alert_category = incident_category
+
+                if (
+                    "malware" in classification_text
+                    or "ransomware" in classification_text
+                ):
+                    alert_category = "Malware"
+
+                elif (
+                    "sign-in" in classification_text
+                    or "signin" in classification_text
+                    or "authentication" in classification_text
+                    or "credential" in classification_text
+                    or "valid account" in classification_text
+                    or "t1078" in classification_text
+                ):
+                    alert_category = "Identity"
+
+                elif (
+                    "powershell" in classification_text
+                    or "command execution" in classification_text
+                    or "script execution" in classification_text
+                    or "t1059" in classification_text
+                ):
+                    alert_category = "Process"
+
+                evidence.append(
+                    {
+                        "category": alert_category,
+                        "finding": (
+                            "Associated Sentinel alert identified"
+                        ),
+                        "evidence": str(alert_properties),
+                        "source": incident.source_product,
+                        "incident_id": incident.incident_id,
+                    }
+                )
+
+    #
+    # Add Microsoft Entra sign-in evidence.
+    #
+    sign_in_evidence = results.get(
+        "Sign-In Evidence",
+        [],
+    )
+
+    if isinstance(sign_in_evidence, list):
+        evidence.extend(sign_in_evidence)
+
+    #
+    # Add existing structured ORION evidence.
+    #
+    existing_evidence = results.get(
+        "Evidence",
+        [],
+    )
+
+    if isinstance(existing_evidence, list):
+        evidence.extend(existing_evidence)
+
+    #
+    # Preserve findings from earlier reasoning stages.
+    #
+    existing_findings = results.get(
+        "Findings",
+        [],
+    )
+
+    if isinstance(existing_findings, list):
+        evidence.extend(existing_findings)
+
+    #
+    # Build cognitive decision signals.
+    #
+    signals = {}
+
+    contextual_risk = results.get(
+        "Contextual Risk",
+        {},
+    )
+
+    if isinstance(contextual_risk, dict):
+        score = contextual_risk.get("score")
+
+        if isinstance(score, (int, float)):
+            signals["contextual_risk"] = score
+
+    business_impact = results.get(
+        "Business Impact",
+        {},
+    )
+
+    if isinstance(business_impact, dict):
+        score = business_impact.get("score")
+
+        if isinstance(score, (int, float)):
+            signals["business_impact"] = score
+
+    #
+    # Build decision context.
+    #
+    decision_context = {
+        "supporting_evidence": normalise_text_items(
+            results.get(
+                "Findings",
+                [],
+            )
+        ),
+    }
+
+    #
+    # Execute ORION cognitive investigation.
+    #
+    cognitive_run = execute_cognitive_pipeline(
+        evidence=evidence,
+        signals=signals,
+        decision_context=decision_context,
+    )
+
+    #
+    # Publish cognitive results.
+    #
+    results["Cognitive Run"] = cognitive_run
+    results["Findings"] = cognitive_run.findings
+    results["Questions"] = cognitive_run.questions
+    results["Hypotheses"] = cognitive_run.hypotheses
+    results["Investigation Outcome"] = (
+        cognitive_run.outcome
+    )
+
+    #
+    # Synchronise the Investigation aggregate.
+    #
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(
+        investigation_aggregate,
+        Investigation,
+    ):
+        investigation_aggregate.findings = (
+            cognitive_run.findings
+        )
+
+        investigation_aggregate.questions = (
+            cognitive_run.questions
+        )
+
+        investigation_aggregate.hypotheses = (
+            cognitive_run.hypotheses
+        )
+
+        investigation_aggregate.investigation_outcome = (
+            cognitive_run.outcome
+        )
+
+    return results
+
+
 def business_impact_stage(investigation, results):
     """
     Assess organisational impact using enriched identity context.
@@ -459,13 +840,44 @@ def contextual_risk_stage(investigation, results):
 
 def operational_decision_stage(investigation, results):
     """
-    Determine the operational response using contextual risk
-    and business impact.
+    Determine the operational response using ORION's cognitive
+    investigation outcome together with risk, business impact,
+    and original alert severity.
     """
 
-    results["Operational Decision"] = determine_operational_decision(
-        results["Contextual Risk"], results["Business Impact"]
+    operational_decision = determine_operational_decision(
+        contextual_risk=results.get(
+            "Contextual Risk",
+            {},
+        ),
+        business_impact=results.get(
+            "Business Impact",
+            {},
+        ),
+        investigation_outcome=results.get(
+            "Investigation Outcome"
+        ),
+        security_incidents=results.get(
+            "Security Incidents",
+            [],
+        ),
     )
+
+    results["Operational Decision"] = (
+        operational_decision
+    )
+
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(
+        investigation_aggregate,
+        Investigation,
+    ):
+        investigation_aggregate.operational_decision = (
+            operational_decision
+        )
 
     return results
 
@@ -881,6 +1293,7 @@ class OrionPipeline:
         self.add_stage(threat_intelligence_stage)
         self.add_stage(threat_correlation_stage)
         self.add_stage(contextual_risk_stage)
+        self.add_stage(cognitive_reasoning_stage)
         self.add_stage(operational_decision_stage)
         self.add_stage(attack_pattern_stage)
         self.add_stage(response_playbook_stage)

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from typing import Any
 
 from .base_model import BaseModel
@@ -22,6 +22,10 @@ class SecurityIncident(BaseModel):
     source_provider: str = ""
     source_product: str = ""
 
-    raw_metadata: dict[str, Any] = field(
-        default_factory=dict
-    )
+    tactics: list[str] = field(default_factory=list)
+    techniques: list[str] = field(default_factory=list)
+
+    entities: list[dict[str, Any]] = field(default_factory=list)
+    alerts: list[dict[str, Any]] = field(default_factory=list)
+
+    raw_metadata: dict[str, Any] = field(default_factory=dict)

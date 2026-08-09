@@ -1,5 +1,5 @@
-from rankers.hypothesis_ranker import rank_hypotheses
-from reasoners.hypothesis_reasoner import reason_from_infrastructure
+﻿from rankers.hypothesis_ranker import rank_hypotheses
+from reasoners.hypothesis_reasoner import reason_from_findings
 
 """
 Hypothesis Pipeline
@@ -13,10 +13,6 @@ def generate_hypotheses(findings):
     Executes the Hypothesis stage.
     """
 
-    hypotheses = []
-
-    hypotheses.extend(
-        reason_from_infrastructure(findings)
-    )
+    hypotheses = reason_from_findings(findings)
 
     return rank_hypotheses(hypotheses)

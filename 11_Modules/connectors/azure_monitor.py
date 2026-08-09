@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -151,7 +151,7 @@ class AzureMonitorClient:
             )
 
         return workspace_id.strip()
-    
+
     def list_sentinel_incidents(
         self,
         subscription_id: str,
@@ -229,6 +229,174 @@ class AzureMonitorClient:
             )
 
         return incidents
+
+    def list_sentinel_incident_entities(
+        self,
+        subscription_id: str,
+        resource_group: str,
+        workspace_name: str,
+        incident_id: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Retrieves all entities associated with a Microsoft Sentinel incident.
+        """
+
+        cleaned_subscription_id = subscription_id.strip()
+        cleaned_resource_group = resource_group.strip()
+        cleaned_workspace_name = workspace_name.strip()
+        cleaned_incident_id = incident_id.strip()
+
+        if not cleaned_subscription_id:
+            raise ValueError("Subscription ID cannot be empty.")
+
+        if not cleaned_resource_group:
+            raise ValueError("Resource group cannot be empty.")
+
+        if not cleaned_workspace_name:
+            raise ValueError("Workspace name cannot be empty.")
+
+        if not cleaned_incident_id:
+            raise ValueError("Incident ID cannot be empty.")
+
+        token = self.auth.acquire_token(
+            scope="https://management.azure.com/.default"
+        )
+
+        url = (
+            "https://management.azure.com/"
+            f"subscriptions/{cleaned_subscription_id}/"
+            f"resourceGroups/{cleaned_resource_group}/"
+            "providers/Microsoft.OperationalInsights/"
+            f"workspaces/{cleaned_workspace_name}/"
+            "providers/Microsoft.SecurityInsights/"
+            f"incidents/{cleaned_incident_id}/entities"
+        )
+
+        try:
+            response = requests.post(
+                url=url,
+                headers={
+                    **token.authorization_header,
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                params={
+                    "api-version": "2025-09-01",
+                },
+                timeout=30,
+            )
+
+        except requests.RequestException as error:
+            raise AzureMonitorError(
+                f"Microsoft Sentinel entity request failed: {error}"
+            ) from error
+
+        if not response.ok:
+            raise AzureMonitorError(
+                "Microsoft Sentinel rejected the entity request. "
+                f"HTTP {response.status_code}. "
+                f"Response: {response.text}"
+            )
+
+        payload = response.json()
+
+        if not isinstance(payload, dict):
+            raise AzureMonitorError(
+                "Microsoft Sentinel returned an invalid entity response."
+            )
+
+        entities = payload.get("entities", [])
+
+        if not isinstance(entities, list):
+            raise AzureMonitorError(
+                "Microsoft Sentinel returned an invalid entity collection."
+            )
+
+        return entities
+
+    def list_sentinel_incident_alerts(
+        self,
+        subscription_id: str,
+        resource_group: str,
+        workspace_name: str,
+        incident_id: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Retrieves all alerts associated with a Microsoft Sentinel incident.
+        """
+
+        cleaned_subscription_id = subscription_id.strip()
+        cleaned_resource_group = resource_group.strip()
+        cleaned_workspace_name = workspace_name.strip()
+        cleaned_incident_id = incident_id.strip()
+
+        if not cleaned_subscription_id:
+            raise ValueError("Subscription ID cannot be empty.")
+
+        if not cleaned_resource_group:
+            raise ValueError("Resource group cannot be empty.")
+
+        if not cleaned_workspace_name:
+            raise ValueError("Workspace name cannot be empty.")
+
+        if not cleaned_incident_id:
+            raise ValueError("Incident ID cannot be empty.")
+
+        token = self.auth.acquire_token(
+            scope="https://management.azure.com/.default"
+        )
+
+        url = (
+            "https://management.azure.com/"
+            f"subscriptions/{cleaned_subscription_id}/"
+            f"resourceGroups/{cleaned_resource_group}/"
+            "providers/Microsoft.OperationalInsights/"
+            f"workspaces/{cleaned_workspace_name}/"
+            "providers/Microsoft.SecurityInsights/"
+            f"incidents/{cleaned_incident_id}/alerts"
+        )
+
+        try:
+            response = requests.post(
+                url=url,
+                headers={
+                    **token.authorization_header,
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                params={
+                    "api-version": "2025-09-01",
+                },
+                timeout=30,
+            )
+
+        except requests.RequestException as error:
+            raise AzureMonitorError(
+                f"Microsoft Sentinel alert request failed: {error}"
+            ) from error
+
+        if not response.ok:
+            raise AzureMonitorError(
+                "Microsoft Sentinel rejected the alert request. "
+                f"HTTP {response.status_code}. "
+                f"Response: {response.text}"
+            )
+
+        payload = response.json()
+
+        if not isinstance(payload, dict):
+            raise AzureMonitorError(
+                "Microsoft Sentinel returned an invalid alert response."
+            )
+
+        alerts = payload.get("value", [])
+
+        if not isinstance(alerts, list):
+            raise AzureMonitorError(
+                "Microsoft Sentinel returned an invalid alert collection."
+            )
+
+        return alerts
 
     def run_kql(
         self,
