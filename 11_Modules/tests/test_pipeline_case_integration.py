@@ -140,7 +140,7 @@ assert investigation_aggregate.business_impact
 assert investigation_aggregate.contextual_risk
 assert investigation_aggregate.operational_decision
 assert investigation_aggregate.metadata["legacy_pipeline"] is True
-assert investigation_aggregate.metadata["pipeline_version"] == "Day35"
+assert investigation_aggregate.metadata["pipeline_version"] == "Day39"
 assert investigation_aggregate.identity_entities
 assert investigation_aggregate.identity_enrichment == {}
 

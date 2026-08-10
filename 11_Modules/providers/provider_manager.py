@@ -1,6 +1,7 @@
 from connectors.config import GraphConfig
 from providers.defender_provider import DefenderProvider
 from providers.entra_provider import EntraProvider
+from providers.environment_search_provider import EnvironmentSearchProvider
 from providers.exchange_provider import ExchangeProvider
 from providers.sentinel_provider import SentinelProvider
 
@@ -37,6 +38,15 @@ class ProviderManager:
     @property
     def sentinel(self) -> SentinelProvider:
         return SentinelProvider(
+            config=self.config,
+            subscription_id=self.subscription_id,
+            resource_group=self.resource_group,
+            workspace_name=self.workspace_name,
+        )
+
+    @property
+    def environment_search(self) -> EnvironmentSearchProvider:
+        return EnvironmentSearchProvider(
             config=self.config,
             subscription_id=self.subscription_id,
             resource_group=self.resource_group,

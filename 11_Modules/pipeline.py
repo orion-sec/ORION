@@ -23,6 +23,7 @@ from attack_patterns import detect_attack_patterns
 from business_impact import assess_business_impact
 from cognitive.cognitive_pipeline import execute as execute_cognitive_pipeline
 from context_risk import assess_contextual_risk
+from correlation.entity_correlator import correlate_entities
 from enrich import enrich_ips
 from evidence_reasoning import reason_over_evidence
 from extract import extract_iocs
@@ -219,6 +220,9 @@ STAGE_NAMES = {
     "case_creation_stage": "Creating Investigation Case",
     "evidence_reasoning_stage": "Reasoning Over Security Evidence",
     "cognitive_reasoning_stage": "Executing Cognitive Investigation",
+    "entity_correlation_stage": "Correlating Investigation Entities",
+    "environment_search_stage": "Searching Related Environment Activity",
+
 }
 
 
@@ -341,27 +345,185 @@ def identity_enrichment_stage(investigation, results):
 
 def signin_evidence_stage(investigation, results):
     """
-    Collect Microsoft Entra sign-in telemetry and attach the
-    resulting SignInEvidence objects to the ORION investigation.
+    Preserve investigation-scoped Microsoft Entra sign-in evidence.
+
+    This stage must not perform an unfiltered tenant-wide sign-in
+    collection because independent ORION investigations must remain
+    isolated from unrelated activity.
+
+    Additional sign-in telemetry is discovered later through
+    entity-driven environment search.
     """
 
-    provider = results.get("Sign-In Evidence Provider")
-
-    if provider is None:
-        results["Sign-In Evidence"] = []
-        return results
-
-    evidence = provider.collect(
-        timespan="P1D",
-        limit=50,
+    evidence = results.get(
+        "Sign-In Evidence",
+        [],
     )
+
+    if not isinstance(evidence, list):
+        evidence = []
 
     results["Sign-In Evidence"] = evidence
 
-    investigation_aggregate = results.get("Investigation Aggregate")
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(
+        investigation_aggregate,
+        Investigation,
+    ):
+        investigation_aggregate.signin_evidence = evidence
+
+    return results
+
+
+def entity_correlation_stage(investigation, results):
+    """
+    Extract correlation pivots from evidence belonging to the
+    current independent ORION investigation.
+
+    This stage does not merge incidents. It prepares entity keys
+    that can later be used for environment-wide searches.
+    """
+
+    evidence_records = []
+
+    security_incidents = results.get(
+        "Security Incidents",
+        [],
+    )
+
+    if isinstance(security_incidents, list):
+        evidence_records.extend(security_incidents)
+
+    sign_in_evidence = results.get(
+        "Sign-In Evidence",
+        [],
+    )
+
+    if isinstance(sign_in_evidence, list):
+        evidence_records.extend(sign_in_evidence)
+
+    existing_evidence = results.get(
+        "Evidence",
+        [],
+    )
+
+    if isinstance(existing_evidence, list):
+        evidence_records.extend(existing_evidence)
+
+    correlation = correlate_entities(
+        evidence_records
+    )
+
+    results["Entity Correlation"] = correlation
+
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
 
     if isinstance(investigation_aggregate, Investigation):
-        investigation_aggregate.signin_evidence = evidence
+        investigation_aggregate.metadata[
+            "entity_correlation"
+        ] = correlation
+
+    return results
+
+
+def environment_search_stage(investigation, results):
+    """
+    Search the wider environment using correlation pivots
+    extracted from the current independent investigation.
+
+    Environment-search results remain separate from the original
+    alert evidence so ORION can preserve evidence provenance.
+    """
+
+    provider = results.get(
+        "Environment Search Provider"
+    )
+
+    if provider is None:
+        results["Environment Search"] = {
+            "search_count": 0,
+            "results": [],
+        }
+        results["Environment Evidence"] = []
+        return results
+
+    correlation = results.get(
+        "Entity Correlation",
+        {},
+    )
+
+    if not isinstance(correlation, dict):
+        correlation = {}
+
+    correlation_keys = correlation.get(
+        "correlation_keys",
+        [],
+    )
+
+    if not isinstance(correlation_keys, list):
+        correlation_keys = []
+
+    if not correlation_keys:
+        results["Environment Search"] = {
+            "search_count": 0,
+            "results": [],
+        }
+        results["Environment Evidence"] = []
+        return results
+
+    search_results = provider.search(
+        correlation_keys=correlation_keys,
+        timespan="P7D",
+    )
+
+    results["Environment Search"] = search_results
+
+    environment_evidence = []
+
+    if isinstance(search_results, dict):
+        related_results = search_results.get(
+            "results",
+            [],
+        )
+
+        if isinstance(related_results, list):
+            for related_result in related_results:
+                if not isinstance(
+                    related_result,
+                    dict,
+                ):
+                    continue
+
+                matches = related_result.get(
+                    "matches",
+                    [],
+                )
+
+                if isinstance(matches, list):
+                    environment_evidence.extend(
+                        matches
+                    )
+
+    results["Environment Evidence"] = (
+        environment_evidence
+    )
+
+    investigation_aggregate = results.get(
+        "Investigation Aggregate"
+    )
+
+    if isinstance(
+        investigation_aggregate,
+        Investigation,
+    ):
+        investigation_aggregate.metadata[
+            "environment_search"
+        ] = search_results
 
     return results
 
@@ -375,6 +537,14 @@ def evidence_reasoning_stage(investigation, results):
     evidence = []
 
     evidence.extend(results.get("Sign-In Evidence", []))
+
+    environment_evidence = results.get(
+        "Environment Evidence",
+        [],
+    )
+
+    if isinstance(environment_evidence, list):
+        evidence.extend(environment_evidence)
 
     existing_evidence = results.get("Evidence", [])
 
@@ -1263,8 +1433,12 @@ def build_investigation_aggregate(results: dict) -> Investigation:
         investigation_outcome=results.get("Investigation Outcome"),
         investigation_case=results.get("Investigation Case"),
         metadata={
-            "pipeline_version": "Day35",
+            "pipeline_version": "Day39",
             "legacy_pipeline": True,
+            "entity_correlation": results.get(
+                "Entity Correlation",
+                {},
+            ),
         },
     )
 
@@ -1287,6 +1461,8 @@ class OrionPipeline:
         self.add_stage(identity_extraction_stage)
         self.add_stage(identity_enrichment_stage)
         self.add_stage(signin_evidence_stage)
+        self.add_stage(entity_correlation_stage)
+        self.add_stage(environment_search_stage)
         self.add_stage(evidence_reasoning_stage)
         self.add_stage(business_impact_stage)
         self.add_stage(ip_enrichment_stage)
