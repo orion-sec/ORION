@@ -23,7 +23,9 @@ from attack_patterns import detect_attack_patterns
 from business_impact import assess_business_impact
 from cognitive.cognitive_pipeline import execute as execute_cognitive_pipeline
 from context_risk import assess_contextual_risk
+from correlation.blast_radius import assess_blast_radius
 from correlation.entity_correlator import correlate_entities
+from correlation.investigation_expander import expand_investigation
 from enrich import enrich_ips
 from evidence_reasoning import reason_over_evidence
 from extract import extract_iocs
@@ -222,6 +224,8 @@ STAGE_NAMES = {
     "cognitive_reasoning_stage": "Executing Cognitive Investigation",
     "entity_correlation_stage": "Correlating Investigation Entities",
     "environment_search_stage": "Searching Related Environment Activity",
+    "investigation_expansion_stage": "Expanding Investigation Scope",
+    "blast_radius_stage": "Assessing Investigation Blast Radius",
 
 }
 
@@ -524,6 +528,55 @@ def environment_search_stage(investigation, results):
         investigation_aggregate.metadata[
             "environment_search"
         ] = search_results
+
+    return results
+
+
+def investigation_expansion_stage(investigation, results):
+    """
+    Expand the current investigation using related evidence
+    discovered by ORION's environment-search layer.
+
+    Expansion remains scoped to the current investigation and
+    does not merge unrelated security incidents.
+    """
+
+    environment_evidence = results.get(
+        "Environment Evidence",
+        [],
+    )
+
+    if not isinstance(environment_evidence, list):
+        environment_evidence = []
+
+    expansion = expand_investigation(
+        environment_evidence
+    )
+
+    results["Investigation Expansion"] = expansion
+
+    return results
+
+
+def blast_radius_stage(investigation, results):
+    """
+    Assess the investigation blast radius from the
+    expanded environment evidence.
+    """
+
+    expansion = results.get(
+        "Investigation Expansion",
+        {},
+    )
+
+    if not isinstance(expansion, dict):
+        expansion = {}
+
+    blast_radius = assess_blast_radius(
+        expansion
+    )
+
+    results["Blast Radius"] = blast_radius
 
     return results
 
@@ -1463,6 +1516,8 @@ class OrionPipeline:
         self.add_stage(signin_evidence_stage)
         self.add_stage(entity_correlation_stage)
         self.add_stage(environment_search_stage)
+        self.add_stage(investigation_expansion_stage)
+        self.add_stage(blast_radius_stage)
         self.add_stage(evidence_reasoning_stage)
         self.add_stage(business_impact_stage)
         self.add_stage(ip_enrichment_stage)

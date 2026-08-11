@@ -90,27 +90,74 @@ def _extract_from_sentinel_entity(
     #
     # User / identity candidates.
     #
+    additional_data = properties.get(
+        "additionalData",
+        {},
+    )
+
+    if not isinstance(additional_data, dict):
+        additional_data = {}
+
     for key in (
         "userPrincipalName",
-        "accountName",
-        "name",
         "email",
         "mail",
-        "address",
     ):
         value = properties.get(key)
 
-        if not value:
-            continue
-
-        cleaned = _clean(value)
-
-        if "@" in cleaned:
+        if value:
             _add_entity(
                 entities,
                 "user",
-                cleaned,
+                value,
             )
+
+    #
+    # Microsoft Sentinel frequently places the full UPN
+    # inside additionalData.
+    #
+    for key in (
+        "UserPrincipalName",
+        "userPrincipalName",
+    ):
+        value = additional_data.get(key)
+
+        if value:
+            _add_entity(
+                entities,
+                "user",
+                value,
+            )
+
+    #
+    # Reconstruct a UPN where Sentinel provides the account
+    # name and suffix separately.
+    #
+    account_name = _clean(
+        properties.get("accountName")
+    )
+
+    upn_suffix = _clean(
+        properties.get("upnSuffix")
+    )
+
+    if (
+        account_name
+        and upn_suffix
+        and "@" not in account_name
+    ):
+        _add_entity(
+            entities,
+            "user",
+            f"{account_name}@{upn_suffix}",
+        )
+
+    elif "@" in account_name:
+        _add_entity(
+            entities,
+            "user",
+            account_name,
+        )
 
     #
     # IP candidates.
@@ -154,6 +201,7 @@ def _extract_from_sentinel_entity(
 
     for key in (
         "hash",
+        "hashValue",
         "file_hash",
         "md5",
         "sha1",

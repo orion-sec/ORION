@@ -114,6 +114,9 @@ def test_live_sentinel_incidents_run_independently() -> None:
             "Raw Security Incidents": [
                 raw_security_incident
             ],
+            "Environment Search Provider": (
+                providers.environment_search
+            ),
         }
 
         investigation_input = {
@@ -184,6 +187,31 @@ def test_live_sentinel_incidents_run_independently() -> None:
 
         outcome = results.get(
             "Investigation Outcome"
+        )
+
+        entity_correlation = results.get(
+            "Entity Correlation",
+            {},
+        )
+
+        environment_search = results.get(
+            "Environment Search",
+            {},
+        )
+
+        environment_evidence = results.get(
+            "Environment Evidence",
+            [],
+        )
+
+        investigation_expansion = results.get(
+            "Investigation Expansion",
+            {},
+        )
+
+        blast_radius = results.get(
+            "Blast Radius",
+            {},
         )
 
         operational_decision = results.get(
@@ -348,6 +376,77 @@ def test_live_sentinel_incidents_run_independently() -> None:
                     None,
                 )}"
             )
+
+        #
+        # Correlation and environment investigation.
+        #
+
+        print()
+        print("ENTITY CORRELATION")
+        print("-" * 70)
+
+        print(
+            "Correlation Keys    : "
+            f"{entity_correlation.get('correlation_keys', [])}"
+        )
+
+        print()
+        print("ENVIRONMENT SEARCH")
+        print("-" * 70)
+
+        print(
+            "Search Count        : "
+            f"{environment_search.get('search_count', 0)}"
+        )
+
+        print(
+            "Environment Evidence: "
+            f"{len(environment_evidence)}"
+        )
+
+        print()
+        print("INVESTIGATION EXPANSION")
+        print("-" * 70)
+
+        print(
+            "Expanded            : "
+            f"{investigation_expansion.get('expanded', False)}"
+        )
+
+        print(
+            "Affected Entities   : "
+            f"{investigation_expansion.get('affected_entity_count', 0)}"
+        )
+
+        print(
+            "Entities            : "
+            f"{investigation_expansion.get('entities', {})}"
+        )
+
+        print()
+        print("BLAST RADIUS")
+        print("-" * 70)
+
+        print(
+            "Scope               : "
+            f"{blast_radius.get('scope', 'None')}"
+        )
+
+        print(
+            "Affected Entities   : "
+            f"{blast_radius.get('affected_entity_count', 0)}"
+        )
+
+        print(
+            "Active Categories   : "
+            f"{blast_radius.get('active_categories', 0)}"
+        )
+
+        print(
+            "Entity Counts       : "
+            f"{blast_radius.get('counts', {})}"
+        )
+
 
         #
         # Operational response.
