@@ -1,9 +1,15 @@
-from connectors.config import GraphConfig
+from connectors.config import (
+    GraphConfig,
+    load_virustotal_config,
+)
 from providers.defender_provider import DefenderProvider
 from providers.entra_provider import EntraProvider
-from providers.environment_search_provider import EnvironmentSearchProvider
+from providers.environment_search_provider import (
+    EnvironmentSearchProvider,
+)
 from providers.exchange_provider import ExchangeProvider
 from providers.sentinel_provider import SentinelProvider
+from providers.virustotal_provider import VirusTotalProvider
 
 
 class ProviderManager:
@@ -45,10 +51,18 @@ class ProviderManager:
         )
 
     @property
-    def environment_search(self) -> EnvironmentSearchProvider:
+    def environment_search(
+        self,
+    ) -> EnvironmentSearchProvider:
         return EnvironmentSearchProvider(
             config=self.config,
             subscription_id=self.subscription_id,
             resource_group=self.resource_group,
             workspace_name=self.workspace_name,
+        )
+
+    @property
+    def virustotal(self) -> VirusTotalProvider:
+        return VirusTotalProvider(
+            load_virustotal_config()
         )

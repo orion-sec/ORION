@@ -7,10 +7,10 @@ from dotenv import load_dotenv
 """
 ORION Connector Configuration
 
-Loads Microsoft Graph configuration securely from environment
-variables rather than hardcoding credentials in source code.
+Loads Microsoft Graph and external provider configuration
+securely from environment variables rather than hardcoding
+credentials in source code.
 """
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = REPOSITORY_ROOT / ".env"
@@ -40,6 +40,17 @@ class GraphConfig:
             "https://login.microsoftonline.com/"
             f"{self.tenant_id}"
         )
+
+
+@dataclass(frozen=True)
+class VirusTotalConfig:
+    """
+    Immutable VirusTotal API configuration.
+    """
+
+    api_key: str
+    base_url: str = "https://www.virustotal.com/api/v3"
+    timeout: int = 15
 
 
 def _required_environment_value(name: str) -> str:
@@ -80,4 +91,38 @@ def load_graph_config() -> GraphConfig:
             "ORION_GRAPH_BASE_URL",
             "https://graph.microsoft.com/v1.0",
         ).strip().rstrip("/"),
+    )
+
+
+def load_virustotal_config() -> VirusTotalConfig:
+    """
+    Loads validated VirusTotal API configuration.
+    """
+
+    timeout_value = os.getenv(
+        "ORION_VIRUSTOTAL_TIMEOUT",
+        "15",
+    ).strip()
+
+    try:
+        timeout = int(timeout_value)
+    except ValueError as error:
+        raise ValueError(
+            "ORION_VIRUSTOTAL_TIMEOUT must be an integer."
+        ) from error
+
+    if timeout <= 0:
+        raise ValueError(
+            "ORION_VIRUSTOTAL_TIMEOUT must be greater than zero."
+        )
+
+    return VirusTotalConfig(
+        api_key=_required_environment_value(
+            "ORION_VIRUSTOTAL_API_KEY"
+        ),
+        base_url=os.getenv(
+            "ORION_VIRUSTOTAL_BASE_URL",
+            "https://www.virustotal.com/api/v3",
+        ).strip().rstrip("/"),
+        timeout=timeout,
     )

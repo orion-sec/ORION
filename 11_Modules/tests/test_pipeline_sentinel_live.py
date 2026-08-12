@@ -117,6 +117,9 @@ def test_live_sentinel_incidents_run_independently() -> None:
             "Environment Search Provider": (
                 providers.environment_search
             ),
+            "VirusTotal Provider": (
+                providers.virustotal
+            ),
         }
 
         investigation_input = {
@@ -192,6 +195,11 @@ def test_live_sentinel_incidents_run_independently() -> None:
         entity_correlation = results.get(
             "Entity Correlation",
             {},
+        )
+
+        indicator_intelligence = results.get(
+            "Indicator Intelligence",
+            [],
         )
 
         environment_search = results.get(
@@ -389,6 +397,20 @@ def test_live_sentinel_incidents_run_independently() -> None:
             "Correlation Keys    : "
             f"{entity_correlation.get('correlation_keys', [])}"
         )
+
+        print()
+        print("INDICATOR INTELLIGENCE")
+        print("-" * 70)
+
+        print(
+            "Profiles            : "
+            f"{len(indicator_intelligence)}"
+        )
+
+        for profile in indicator_intelligence:
+            print(
+                f"  {profile}"
+            )
 
         print()
         print("ENVIRONMENT SEARCH")

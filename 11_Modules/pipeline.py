@@ -22,6 +22,7 @@ import time
 from attack_patterns import detect_attack_patterns
 from business_impact import assess_business_impact
 from cognitive.cognitive_pipeline import execute as execute_cognitive_pipeline
+from connectors.virustotal_client import VirusTotalError
 from context_risk import assess_contextual_risk
 from correlation.blast_radius import assess_blast_radius
 from correlation.entity_correlator import correlate_entities
@@ -226,6 +227,7 @@ STAGE_NAMES = {
     "environment_search_stage": "Searching Related Environment Activity",
     "investigation_expansion_stage": "Expanding Investigation Scope",
     "blast_radius_stage": "Assessing Investigation Blast Radius",
+    "indicator_intelligence_stage": "Enriching Indicators with Threat Intelligence",
 
 }
 
@@ -577,6 +579,113 @@ def blast_radius_stage(investigation, results):
     )
 
     results["Blast Radius"] = blast_radius
+
+    return results
+
+
+def indicator_intelligence_stage(investigation, results):
+    """
+    Enrich investigation correlation pivots with external
+    indicator intelligence.
+
+    VirusTotal is injected explicitly through pipeline results
+    so ordinary regression tests never make unintended live
+    external API calls.
+    """
+
+    provider = results.get(
+        "VirusTotal Provider"
+    )
+
+    if provider is None:
+        results["Indicator Intelligence"] = []
+        return results
+
+    correlation = results.get(
+        "Entity Correlation",
+        {},
+    )
+
+    if not isinstance(correlation, dict):
+        results["Indicator Intelligence"] = []
+        return results
+
+    correlation_keys = correlation.get(
+        "correlation_keys",
+        [],
+    )
+
+    if not isinstance(correlation_keys, list):
+        results["Indicator Intelligence"] = []
+        return results
+
+    profiles = []
+
+    for correlation_key in correlation_keys:
+        if not isinstance(
+            correlation_key,
+            dict,
+        ):
+            continue
+
+        indicator_type = str(
+            correlation_key.get(
+                "type",
+                "",
+            )
+        ).strip()
+
+        value = str(
+            correlation_key.get(
+                "value",
+                "",
+            )
+        ).strip()
+
+        if not value:
+            continue
+
+        try:
+            if indicator_type == "file_hash":
+                profile = provider.lookup_file_hash(
+                    value
+                )
+
+            elif indicator_type == "domain":
+                profile = provider.lookup_domain(
+                    value
+                )
+
+            elif indicator_type == "url":
+                profile = provider.lookup_url(
+                    value
+                )
+
+            elif indicator_type == "ip":
+                profile = provider.lookup_ip(
+                    value
+                )
+
+            else:
+                continue
+
+            profiles.append(profile)
+
+        except (
+            VirusTotalError,
+            ValueError,
+        ) as error:
+            profiles.append(
+                {
+                    "indicator_type": indicator_type,
+                    "value": value,
+                    "provider": "VirusTotal",
+                    "status": "Unavailable",
+                    "error": str(error),
+                }
+            )
+
+    results["Indicator Intelligence"] = profiles
 
     return results
 
@@ -1486,11 +1595,15 @@ def build_investigation_aggregate(results: dict) -> Investigation:
         investigation_outcome=results.get("Investigation Outcome"),
         investigation_case=results.get("Investigation Case"),
         metadata={
-            "pipeline_version": "Day39",
+            "pipeline_version": "Day41",
             "legacy_pipeline": True,
             "entity_correlation": results.get(
                 "Entity Correlation",
                 {},
+            ),
+            "indicator_intelligence": results.get(
+                "Indicator Intelligence",
+                [],
             ),
         },
     )
@@ -1518,6 +1631,7 @@ class OrionPipeline:
         self.add_stage(environment_search_stage)
         self.add_stage(investigation_expansion_stage)
         self.add_stage(blast_radius_stage)
+        self.add_stage(indicator_intelligence_stage)
         self.add_stage(evidence_reasoning_stage)
         self.add_stage(business_impact_stage)
         self.add_stage(ip_enrichment_stage)
