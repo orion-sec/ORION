@@ -34,6 +34,7 @@ from factories.case_factory import create_investigation_case
 from factories.sentinel_incident_factory import create_sentinel_incident
 from identity_enrichment import enrich_identity
 from identity_entities import extract_identity_entities
+from models.indicator_profile import IndicatorProfile
 from models.investigation import Investigation
 from models.investigation_case import (
     CaseSeverity,
@@ -1011,6 +1012,74 @@ def cognitive_reasoning_stage(investigation, results):
         evidence.extend(existing_findings)
 
     #
+    # Promote structured indicator intelligence into
+    # cognitive evidence.
+    #
+    indicator_intelligence = results.get(
+        "Indicator Intelligence",
+        [],
+    )
+
+    if not isinstance(
+        indicator_intelligence,
+        list,
+    ):
+        indicator_intelligence = [
+            indicator_intelligence
+        ]
+
+    for profile in indicator_intelligence:
+        if not isinstance(
+            profile,
+            IndicatorProfile,
+        ):
+            continue
+
+        classification = (
+            profile.classification.value
+            if hasattr(
+                profile.classification,
+                "value",
+            )
+            else str(profile.classification)
+        )
+
+        indicator_type = (
+            profile.indicator_type.value
+            if hasattr(
+                profile.indicator_type,
+                "value",
+            )
+            else str(profile.indicator_type)
+        )
+
+        evidence.append(
+            {
+                "category": (
+                    profile.category
+                    if profile.category != "Unknown"
+                    else "Threat Intelligence"
+                ),
+                "finding": (
+                    f"{indicator_type} {profile.value} "
+                    f"is classified as {classification} "
+                    f"by {profile.provider}"
+                ),
+                "evidence": (
+                    f"Risk={profile.risk_level}; "
+                    f"Confidence={profile.confidence}%; "
+                    f"ThreatFamily={profile.threat_family}; "
+                    f"Sources={profile.intelligence_sources}; "
+                    f"MITRE={profile.mitre_techniques}; "
+                    f"InternalPrevalence="
+                    f"{profile.internal_prevalence}"
+                ),
+                "source": profile.provider,
+            }
+        )
+
+
+    #
     # Build cognitive decision signals.
     #
     signals = {}
@@ -1046,6 +1115,10 @@ def cognitive_reasoning_stage(investigation, results):
                 "Findings",
                 [],
             )
+        ),
+        "indicator_intelligence": results.get(
+            "Indicator Intelligence",
+            [],
         ),
     }
 

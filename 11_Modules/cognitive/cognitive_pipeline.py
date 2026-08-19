@@ -20,7 +20,15 @@ def execute(evidence, signals=None, decision_context=None):
     decision_context = decision_context or {}
 
     findings = generate_findings(evidence)
-    questions = generate_questions(findings)
+
+    questions = generate_questions(
+        findings,
+        indicator_intelligence=decision_context.get(
+            "indicator_intelligence",
+            [],
+        ),
+    )
+
     hypotheses = generate_hypotheses(findings)
 
     outcome = determine_outcome(

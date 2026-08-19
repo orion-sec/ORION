@@ -10,14 +10,28 @@ They do not perform investigation logic.
 """
 
 
-def create_question(question, reason):
+def create_question(
+    question: str,
+    reason: str,
+    *,
+    category: str = "General",
+    evidence_gap: str = "",
+    priority: str = "Medium",
+) -> Question:
     """
     Creates a Question cognitive model.
+
+    The evidence_gap identifies the specific investigation
+    fact that must still be established.
     """
 
     return Question(
         question=question,
         reason=reason,
+        category=category,
+        evidence_gap=evidence_gap,
+        priority=priority,
+        status="Unresolved",
     )
 
 
@@ -46,7 +60,7 @@ def generate_infrastructure_questions(finding):
 
 def generate_malware_questions(finding):
     """
-    Generates questions from malware findings.
+    Generates evidence-aware questions from malware findings.
     """
 
     return [
@@ -55,27 +69,62 @@ def generate_malware_questions(finding):
                 "Is the detected file or hash known "
                 "to be malicious?"
             ),
-            reason=finding.finding,
+            reason=(
+                "The investigation contains a file or hash "
+                "associated with suspected malware, but its "
+                "reputation must be established before the "
+                "artifact can be classified confidently."
+            ),
+            category="Threat Intelligence",
+            evidence_gap="indicator-reputation",
+            priority="High",
         ),
         create_question(
             question=(
                 "Was the suspicious executable actually "
                 "executed on the endpoint?"
             ),
-            reason=finding.finding,
+            reason=(
+                "A suspicious artifact was identified, but "
+                "current evidence does not establish whether "
+                "it executed. Execution evidence is required "
+                "to distinguish file presence from active "
+                "endpoint compromise."
+            ),
+            category="Execution",
+            evidence_gap="process-execution",
+            priority="High",
         ),
         create_question(
             question=(
                 "What process launched the suspicious file?"
             ),
-            reason=finding.finding,
+            reason=(
+                "The investigation does not yet establish "
+                "the process lineage associated with the "
+                "suspicious artifact. Identifying the parent "
+                "or launching process will help determine "
+                "how execution occurred."
+            ),
+            category="Process",
+            evidence_gap="parent-process",
+            priority="High",
         ),
         create_question(
             question=(
                 "Has the same file or hash been observed "
                 "on other endpoints?"
             ),
-            reason=finding.finding,
+            reason=(
+                "The artifact has been identified in the "
+                "current investigation, but its prevalence "
+                "across the environment is not yet known. "
+                "Environment-wide occurrence is required "
+                "to assess potential blast radius."
+            ),
+            category="Blast Radius",
+            evidence_gap="indicator-prevalence",
+            priority="Medium",
         ),
     ]
 
